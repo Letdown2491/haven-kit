@@ -36,14 +36,14 @@ Haven operates as four specialized relays in one application:
 ### Option 1: Through Umbrel App Store (Coming Soon)
 1. Open your Umbrel dashboard
 2. Navigate to the App Store
-3. Search for "Haven"
+3. Search for "Haven Kit"
 4. Click Install
 
 ### Option 2: Manual Installation
 1. Clone this repository into your Umbrel apps directory:
    ```bash
    cd ~/umbrel/apps
-   git clone <this-repo-url> haven
+   git clone https://github.com/Letdown2491/haven-kit.git haven
    ```
 
 2. Install the app:
