@@ -1,0 +1,55 @@
+manifestVersion: 1
+id: haven
+category: social
+name: Haven
+version: "1.0.0"
+tagline: High Availability Vault for Events on Nostr
+description: >-
+  Haven is a sovereign personal relay for the Nostr protocol, designed for storing
+  and backing up sensitive notes like eCash, private chats, and drafts.
+
+
+  Haven operates as four specialized relays in one application:
+
+  - Private Relay: Restricted to the owner for drafts and sensitive content
+
+  - Chat Relay: For direct messages with web-of-trust filtering
+
+  - Inbox Relay: Aggregates notes where the owner is mentioned
+
+  - Outbox Relay: Publicly accessible storage for owner's posts
+
+  - Blossom Media Server: Hosts images and videos for sharing
+
+
+  Features include intelligent filtering through web-of-trust protection, automatic
+  note aggregation from other relays, cloud backup capabilities, and broadcast
+  distribution to multiple relays simultaneously.
+releaseNotes: >-
+  Initial release of Haven for Umbrel with configuration UI.
+
+
+  Features:
+
+  - Web-based configuration interface for .env settings
+
+  - GUI editors for relay configurations (blastr and import)
+
+  - One-click restart functionality
+
+  - Status monitoring
+developer: Bitvora
+website: https://github.com/bitvora/haven
+dependencies: []
+repo: https://github.com/bitvora/haven
+support: https://github.com/bitvora/haven/issues
+port: 8080
+gallery:
+  - 1.jpg
+  - 2.jpg
+  - 3.jpg
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: Haven Community
+submission: https://github.com/getumbrel/umbrel-apps

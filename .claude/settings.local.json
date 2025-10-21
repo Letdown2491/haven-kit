@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(tree:*)",
+      "Bash(export APP_DATA_DIR=./data)",
+      "Bash(echo:*)",
+      "Bash(podman-compose down:*)",
+      "Bash(podman-compose up:*)",
+      "Bash(podman ps:*)",
+      "Bash(podman logs:*)",
+      "Bash(podman restart:*)",
+      "Bash(curl:*)",
+      "Bash(podman-compose build:*)",
+      "Bash(podman stop:*)",
+      "Bash(podman rm:*)",
+      "Bash(podman-compose stop:*)",
+      "Bash(podman exec:*)",
+      "Bash(podman rmi:*)",
+      "Bash(podman:*)",
+      "Read(//var/home/martin/Pictures/Screenshots/**)",
+      "Bash(python3:*)",
+      "Bash(localhost/haven-kit_haven_relay:latest )",
+      "Bash(haven --import:*)",
+      "Bash(haven --version:*)",
+      "Read(//var/home/martin/Projects/**)",
+      "Bash(ip addr:*)",
+      "Bash(env)",
+      "Read(//var/home/martin/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

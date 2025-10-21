@@ -1,0 +1,16 @@
+# This directory only contains the Dockerfile
+# The actual source is cloned during build
+# But in case any files end up here, exclude them
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

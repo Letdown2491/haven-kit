@@ -1,0 +1,34 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+NOTES.md
+*.md
+
+# Data directories (runtime only)
+data/
+
+# Docker files
+docker-compose.yml
+docker-compose*.yml
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

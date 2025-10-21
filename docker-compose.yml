@@ -1,0 +1,60 @@
+version: "3.8"
+name: haven-kit
+
+services:
+  # Haven Nostr Relay
+  haven_relay:
+    build:
+      context: ./haven-relay
+      dockerfile: Dockerfile
+    container_name: haven_relay_1
+    restart: unless-stopped
+    ports:
+      - "3355:3355"
+    volumes:
+      - ${APP_DATA_DIR}/config:/haven-config:z
+      - ${APP_DATA_DIR}/blossom:/haven/blossom:z
+      - ${APP_DATA_DIR}/db:/haven/db:z
+    environment:
+      - TZ=UTC
+    env_file:
+      - ${APP_DATA_DIR}/config/.env
+    networks:
+      - haven_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3355"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Configuration UI
+  config_ui:
+    build:
+      context: ./config-ui
+      dockerfile: Dockerfile
+    container_name: haven_config_ui_1
+    restart: unless-stopped
+    ports:
+      - "${APP_HAVEN_CONFIG_UI_PORT:-8080}:8080"
+    volumes:
+      - ${APP_DATA_DIR}/config:/haven-config:z
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
+      - ${PWD}/docker-compose.yml:/docker-compose.yml:ro
+    working_dir: /
+    environment:
+      - DOCKER_SOCK=${DOCKER_SOCK:-/var/run/docker.sock}
+      - CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-}
+      - DATA_DIR=${PWD}/data
+      - APP_DATA_DIR=${APP_DATA_DIR}
+    user: "${UID:-0}:${GID:-0}"
+    security_opt:
+      - label=disable
+    depends_on:
+      - haven_relay
+    networks:
+      - haven_network
+
+networks:
+  haven_network:
+    driver: bridge

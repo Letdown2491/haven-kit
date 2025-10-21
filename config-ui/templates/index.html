@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAVEN Kit</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-title">
+                    <div class="logo">⚡</div>
+                    <div>
+                        <h1>HAVEN Kit</h1>
+                        <div class="subtitle">Simple configuration tool to set up a HAVEN Nostr relay <a href="https://github.com/Letdown2491/haven-kit" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none;">(View project)</a></div>
+                    </div>
+                </div>
+                <span id="status-indicator" class="status-badge">
+                    <span class="dot"></span>
+                    <span id="status-text">Checking status...</span>
+                </span>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-button active" data-tab="instructions">📖 Get Started</button>
+                <button class="tab-button" data-tab="wizard">⚙️ Configuration</button>
+                <button class="tab-button" data-tab="blastr">📡 Blastr Relays</button>
+                <button class="tab-button" data-tab="import-relays">📋 Import Relays</button>
+                <button class="tab-button" data-tab="import-notes">📥 Import Notes</button>
+            </div>
+        </header>
+
+        <!-- Instructions Tab -->
+        <div class="tab-content active" id="instructions-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Quick Start</h2>
+                    <p class="help-text">
+                        HAVEN (High Availability Vault for Events on Nostr) is the most sovereign personal relay for the Nostr protocol, for storing and backing up sensitive notes like eCash, private chats and drafts. It is a relay that is not so dumb, with features like web of trust, inbox relay, cloud backups, blastr and the ability to import old notes. It even includes it's own blossom media server!
+                    </p>
+                </div>
+
+                <div class="instructions-content">
+                    <div class="setup-steps-list">
+                        <div class="step-item">
+                            <div class="step-item-content">
+                                <div class="step-header">
+                                    <span class="step-num">1</span>
+                                    <strong>Configure HAVEN</strong>
+                                    <em>(required)</em>
+                                </div>
+                                <p>Set your Nostr identity (npub), relay URL, and configure the four relay types. This establishes ownership and defines how HAVEN handles different types of content.</p>
+                            </div>
+                            <div class="step-item-action">
+                                <button class="btn btn-primary btn-sm" onclick="switchToTab('wizard')">⚙️ Start Configuration</button>
+                            </div>
+                        </div>
+
+                        <div class="step-item">
+                            <div class="step-item-content">
+                                <div class="step-header">
+                                    <span class="step-num">2</span>
+                                    <strong>Blastr Relays</strong>
+                                    <em>(optional)</em>
+                                </div>
+                                <p>Choose additional relays to automatically broadcast your public posts to. Increases reach beyond your personal relay. HAVEN has sensible defaults so this step is optional and you can move to step 3.</p>
+                            </div>
+                            <div class="step-item-action">
+                                <button class="btn btn-secondary btn-sm" onclick="switchToTab('blastr')">📡 Edit Blastr Relays</button>
+                            </div>
+                        </div>
+
+                        <div class="step-item">
+                            <div class="step-item-content">
+                                <div class="step-header">
+                                    <span class="step-num">3</span>
+                                    <strong>Import Relays</strong>
+                                    <em>(optional)</em>
+                                </div>
+                                <p>Specify source relays to pull your existing notes from. Useful for consolidating your Nostr history into your personal relay for backup or migration. HAVEN has sensible defaults here as well, so if you want to use the defaults, you can move to step 4.</p>
+                            </div>
+                            <div class="step-item-action">
+                                <button class="btn btn-secondary btn-sm" onclick="switchToTab('import-relays')">📋 Edit Import Relays</button>
+                            </div>
+                        </div>
+
+                        <div class="step-item">
+                            <div class="step-item-content">
+                                <div class="step-header">
+                                    <span class="step-num">4</span>
+                                    <strong>Import Notes</strong>
+                                    <em>(optional)</em>
+                                </div>
+                                <p>If you want to import your historical notes from the configured import relays, complete this step. HAVEN temporarily stops during import and depending on the import date chosen in step 1, it may take a few minutes to import your notes.</p>
+                            </div>
+                            <div class="step-item-action">
+                                <button class="btn btn-secondary btn-sm" onclick="switchToTab('import-notes')">📥 Import Notes</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="quick-tips">
+                        <strong>💡 Tips:</strong> Save after each change • Restart to apply changes • npub required
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard Tab -->
+        <div class="tab-content" id="wizard-tab">
+            <div class="section">
+                <!-- Progress Indicator -->
+                <div class="wizard-progress">
+                    <!-- Simple Mode Progress -->
+                    <div class="progress-steps" id="simple-progress" style="display: none;">
+                        <div class="progress-step active" data-step="0">
+                            <div class="step-number">1</div>
+                            <div class="step-label">Mode</div>
+                        </div>
+                        <div class="progress-step" data-step="1">
+                            <div class="step-number">2</div>
+                            <div class="step-label">Setup</div>
+                        </div>
+                    </div>
+
+                    <!-- Full Mode Progress -->
+                    <div class="progress-steps" id="full-progress" style="display: none;">
+                        <div class="progress-step active" data-step="0">
+                            <div class="step-number">1</div>
+                            <div class="step-label">Mode</div>
+                        </div>
+                        <div class="progress-step" data-step="1">
+                            <div class="step-number">2</div>
+                            <div class="step-label">Owner</div>
+                        </div>
+                        <div class="progress-step" data-step="2">
+                            <div class="step-number">3</div>
+                            <div class="step-label">Relay</div>
+                        </div>
+                        <div class="progress-step" data-step="3">
+                            <div class="step-number">4</div>
+                            <div class="step-label">Private</div>
+                        </div>
+                        <div class="progress-step" data-step="4">
+                            <div class="step-number">5</div>
+                            <div class="step-label">Chat</div>
+                        </div>
+                        <div class="progress-step" data-step="5">
+                            <div class="step-number">6</div>
+                            <div class="step-label">Outbox</div>
+                        </div>
+                        <div class="progress-step" data-step="6">
+                            <div class="step-number">7</div>
+                            <div class="step-label">Inbox</div>
+                        </div>
+                        <div class="progress-step" data-step="7">
+                            <div class="step-number">8</div>
+                            <div class="step-label">Backup</div>
+                        </div>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Wizard Form -->
+                <form id="config-form">
+                    <!-- Step 0: Configuration Mode Selection -->
+                    <div class="wizard-step active" data-step="0">
+                        <h2 style="margin-bottom: 8px;">🚀 Choose Configuration Mode</h2>
+                        <p class="help-text" style="margin-bottom: 30px;">Select how you'd like to configure HAVEN.</p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="config-mode-card" onclick="setConfigMode('simple')">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <span style="font-size: 32px;">⚡</span>
+                                    <h3 style="margin: 0;">Simple Configuration</h3>
+                                </div>
+                                <p style="margin: 0; color: var(--text-secondary);">
+                                    Quick setup with sensible defaults. Just enter your npub and username, and we'll handle the rest.
+                                </p>
+                                <div style="margin-top: 12px; padding: 8px 12px; background: var(--primary); color: white; border-radius: 4px; display: inline-block; font-size: 13px;">
+                                    Recommended for most users
+                                </div>
+                            </div>
+
+                            <div class="config-mode-card" onclick="setConfigMode('full')">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <span style="font-size: 32px;">🔧</span>
+                                    <h3 style="margin: 0;">Full Configuration</h3>
+                                </div>
+                                <p style="margin: 0; color: var(--text-secondary);">
+                                    Customize every aspect of HAVEN including relay names, rate limiters, and advanced settings.
+                                </p>
+                                <div style="margin-top: 12px; padding: 8px 12px; background: var(--border); border-radius: 4px; display: inline-block; font-size: 13px;">
+                                    For advanced users
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- View Configuration Card -->
+                        <div class="config-mode-card" onclick="showAdvancedConfig()" style="margin-top: 20px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 32px;">📄</span>
+                                <div style="flex: 1;">
+                                    <h3 style="margin: 0 0 4px 0;">View Configuration</h3>
+                                    <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">
+                                        View and edit the raw .env configuration file directly
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Owner Configuration (updated for both modes) -->
+                    <div class="wizard-step" data-step="1">
+                        <div id="simple-config-step" style="display: none;">
+                            <h2>👤 Simple Configuration</h2>
+                            <p class="help-text">Just two pieces of information to get started!</p>
+
+                            <div class="form-group">
+                                <label class="form-label">Your Nostr Public Key (npub)*</label>
+                                <input type="text" name="OWNER_NPUB" id="OWNER_NPUB" required
+                                       placeholder="npub1..." pattern="npub1[a-z0-9]{58,}">
+                                <span class="form-hint">Get your npub from any Nostr client or <a href="https://nostr.how" target="_blank">nostr.how</a></span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Your Username*</label>
+                                <input type="text" name="USERNAME" id="USERNAME" required
+                                       placeholder="e.g., Geek, Alice, Bob">
+                                <span class="form-hint">Used to name your relays (e.g., "Geek's Private Relay")</span>
+                            </div>
+                        </div>
+
+                        <div id="full-config-step" style="display: none;">
+                            <h2>👤 Owner Configuration</h2>
+                            <p class="help-text">Your Nostr identity. This is required to run HAVEN.</p>
+
+                            <div class="form-group">
+                                <label class="form-label">Your Nostr Public Key (npub)*</label>
+                                <input type="text" name="OWNER_NPUB" id="OWNER_NPUB_FULL" required
+                                       placeholder="npub1..." pattern="npub1[a-z0-9]{58,}">
+                                <span class="form-hint">Get your npub from any Nostr client or <a href="https://nostr.how" target="_blank">nostr.how</a></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Relay Configuration -->
+                    <div class="wizard-step" data-step="2">
+                        <h2>🌐 Relay Configuration</h2>
+                        <p class="help-text">Basic relay settings and database configuration.</p>
+
+                        <div class="form-group">
+                            <label class="form-label">Relay URL*</label>
+                            <input type="text" name="RELAY_URL" placeholder="ws://localhost:3355" required>
+                            <span class="form-hint">WebSocket URL where your relay is accessible (use wss:// for production with SSL)</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Relay Port</label>
+                            <input type="number" name="RELAY_PORT" value="3355" min="1" max="65535">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Bind Address</label>
+                            <input type="text" name="RELAY_BIND_ADDRESS" value="0.0.0.0">
+                            <span class="form-hint">0.0.0.0 for all interfaces, or specific IP address</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Database Engine</label>
+                            <select name="DB_ENGINE">
+                                <option value="badger">BadgerDB (default)</option>
+                                <option value="lmdb">LMDB (best with NVMe)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">LMDB Map Size (bytes)</label>
+                            <input type="number" name="LMDB_MAPSIZE" value="0" min="0">
+                            <span class="form-hint">0 for default (~273GB), or set custom size in bytes</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Media Storage Path</label>
+                            <input type="text" name="BLOSSOM_PATH" value="/haven/blossom">
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Private Relay -->
+                    <div class="wizard-step" data-step="3">
+                        <h2>🔒 Private Relay Settings</h2>
+                        <p class="help-text">Configure your private relay for drafts and sensitive content.</p>
+
+                        <div class="form-group">
+                            <label class="form-label">Relay Name</label>
+                            <input type="text" name="PRIVATE_RELAY_NAME" placeholder="My Private Relay">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" name="PRIVATE_RELAY_DESCRIPTION" placeholder="A safe place to store my drafts and ecash">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Icon URL (optional)</label>
+                            <input type="url" name="PRIVATE_RELAY_ICON" placeholder="https://...">
+                        </div>
+
+                        <div class="collapsible">
+                            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                                <span class="collapsible-title">⚡ Advanced Rate Limiting</span>
+                                <span class="collapsible-icon">▼</span>
+                            </div>
+                            <div class="collapsible-content">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Event IP Limiter (tokens/interval)</label>
+                                        <input type="number" name="PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL" value="50">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Interval (seconds)</label>
+                                        <input type="number" name="PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL" value="1">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Max Tokens</label>
+                                    <input type="number" name="PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS" value="100">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <input type="checkbox" name="PRIVATE_RELAY_ALLOW_EMPTY_FILTERS" value="true" checked>
+                                        Allow Empty Filters
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <input type="checkbox" name="PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS" value="true" checked>
+                                        Allow Complex Filters
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Chat Relay -->
+                    <div class="wizard-step" data-step="4">
+                        <h2>💬 Chat Relay Settings</h2>
+                        <p class="help-text">Configure your chat relay for direct messages with web-of-trust filtering.</p>
+
+                        <div class="form-group">
+                            <label class="form-label">Relay Name</label>
+                            <input type="text" name="CHAT_RELAY_NAME" placeholder="My Chat Relay">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" name="CHAT_RELAY_DESCRIPTION" placeholder="A relay for private chats">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Icon URL (optional)</label>
+                            <input type="url" name="CHAT_RELAY_ICON" placeholder="https://...">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Web of Trust Depth</label>
+                            <input type="number" name="CHAT_RELAY_WOT_DEPTH" value="3" min="0" max="10">
+                            <span class="form-hint">How many degrees of separation to trust</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Minimum Followers</label>
+                            <input type="number" name="CHAT_RELAY_MINIMUM_FOLLOWERS" value="3" min="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">WOT Refresh Interval (hours)</label>
+                            <input type="number" name="CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS" value="24" min="1">
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Outbox Relay -->
+                    <div class="wizard-step" data-step="5">
+                        <h2>📤 Outbox Relay Settings</h2>
+                        <p class="help-text">Configure your public outbox relay and Blossom media server.</p>
+
+                        <div class="form-group">
+                            <label class="form-label">Relay Name</label>
+                            <input type="text" name="OUTBOX_RELAY_NAME" placeholder="My Outbox Relay">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" name="OUTBOX_RELAY_DESCRIPTION" placeholder="A relay and Blossom server for public messages and media">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Icon URL (optional)</label>
+                            <input type="url" name="OUTBOX_RELAY_ICON" placeholder="https://...">
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Inbox Relay -->
+                    <div class="wizard-step" data-step="6">
+                        <h2>📥 Inbox Relay Settings</h2>
+                        <p class="help-text">Configure your inbox relay for receiving interactions.</p>
+
+                        <div class="form-group">
+                            <label class="form-label">Relay Name</label>
+                            <input type="text" name="INBOX_RELAY_NAME" placeholder="My Inbox Relay">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" name="INBOX_RELAY_DESCRIPTION" placeholder="Send your interactions with my notes here">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Icon URL (optional)</label>
+                            <input type="url" name="INBOX_RELAY_ICON" placeholder="https://...">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Pull Interval (seconds)</label>
+                            <input type="number" name="INBOX_PULL_INTERVAL_SECONDS" value="600" min="60">
+                            <span class="form-hint">How often to check for new interactions</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Import Start Date</label>
+                            <input type="date" name="IMPORT_START_DATE" value="2023-01-20">
+                            <span class="form-hint">Only import notes after this date</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Backup Settings -->
+                    <div class="wizard-step" data-step="7">
+                        <h2>💾 Backup Configuration</h2>
+                        <p class="help-text">Optional S3-compatible cloud backup settings.</p>
+
+                        <div class="form-group">
+                            <label class="form-label">Backup Provider</label>
+                            <select name="BACKUP_PROVIDER" onchange="toggleS3Fields(this.value)">
+                                <option value="none">None (disabled)</option>
+                                <option value="s3">S3-compatible storage</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Backup Interval (hours)</label>
+                            <input type="number" name="BACKUP_INTERVAL_HOURS" value="24" min="1">
+                        </div>
+
+                        <div id="s3-fields" style="display: none;">
+                            <h3>S3 Configuration</h3>
+
+                            <div class="form-group">
+                                <label class="form-label">Access Key ID</label>
+                                <input type="text" name="S3_ACCESS_KEY_ID" placeholder="Your access key">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Secret Key</label>
+                                <input type="password" name="S3_SECRET_KEY" placeholder="Your secret key">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Endpoint</label>
+                                <input type="text" name="S3_ENDPOINT" placeholder="nyc3.digitaloceanspaces.com">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Region</label>
+                                <input type="text" name="S3_REGION" placeholder="nyc3">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Bucket Name</label>
+                                <input type="text" name="S3_BUCKET_NAME" placeholder="my-backups">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="wizard-navigation">
+                        <button type="button" class="btn btn-secondary" id="prev-btn" onclick="previousStep()" style="display: none;">
+                            ← Previous
+                        </button>
+                        <button type="button" class="btn btn-primary" id="next-btn">
+                            Next →
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Blastr Relays Tab -->
+        <div class="tab-content" id="blastr-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Blastr Relay Configuration</h2>
+                    <p class="help-text">
+                        Manage relays URLs to which your outbox notes will be published. Other users will read your public notes from these relays. For most users, the default list is good enough so you don't need to change it.
+                    </p>
+                </div>
+
+                <div id="blastr-list" class="relay-list"></div>
+
+                <div class="add-relay">
+                    <input type="text" id="blastr-input" placeholder="wss://relay.example.com or relay.example.com" autocomplete="off"/>
+                    <button class="btn btn-secondary" onclick="addRelay('blastr')">➕ Add Relay</button>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="saveRelayConfig('blastr')" style="text-align: center;">💾 Save Blastr Relay Configuration</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Relays Tab -->
+        <div class="tab-content" id="import-relays-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Import Relay Configuration</h2>
+                    <p class="help-text">
+                        Manage the relays HAVEN will use to import your historical notes and tagged content. For most users, the default list is good enough so you don't need to change it.
+                    </p>
+                </div>
+
+                <div id="import-list" class="relay-list"></div>
+
+                <div class="add-relay">
+                    <input type="text" id="import-input" placeholder="wss://relay.example.com or relay.example.com" autocomplete="off"/>
+                    <button class="btn btn-secondary" onclick="addRelay('import')">➕ Add Relay</button>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="saveRelayConfig('import')" style="text-align: center;">💾 Save Import Relay Configuration</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Notes Tab -->
+        <div class="tab-content" id="import-notes-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Import Notes</h2>
+                    <p class="help-text">
+                        Import your historical notes and tagged content from configured relays. This will stop HAVEN temporarily during the import process.
+                    </p>
+                </div>
+
+                <div class="import-info-compact">
+                    <span id="import-relay-count">Loading...</span> relay(s) •
+                    Start date: <span id="import-start-date">Loading...</span> •
+                    Status: <span id="import-status" class="status-idle">Idle</span>
+                </div>
+
+                <div class="import-actions">
+                    <p class="help-text">
+                        ⚠️ Warning: HAVEN will be stopped during the import process. This may take several minutes depending on the number of notes.
+                    </p>
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button id="run-import-btn" class="btn btn-primary" onclick="runImport()" style="text-align: center;">
+                            📥 Import Notes
+                        </button>
+                    </div>
+                </div>
+
+                <div id="import-log-container" class="log-container" style="display: none;">
+                    <h3>Import Log</h3>
+                    <div id="import-log" class="log-output"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Variables Tab (Raw .env editor) -->
+        <div class="tab-content" id="advanced-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Configuration File (.env)</h2>
+                    <p class="help-text">
+                        <strong>⚠️ Advanced users only:</strong> Edit the raw .env file directly.
+                        Changes here override the wizard configuration.
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <textarea id="env-editor" rows="35" placeholder="Loading configuration..." style="resize: vertical;"></textarea>
+                    <span class="form-hint">💡 Tip: Use Ctrl/Cmd + F to search for specific settings</span>
+                </div>
+
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-warning" onclick="saveEnvConfigAdvanced()" style="flex: 1;">
+                        💾 Save Configuration
+                    </button>
+                    <button class="btn btn-secondary" onclick="showWizardConfig()" style="flex: 0 0 auto;">
+                        ← Back to Configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Restart Section -->
+        <div class="restart-section">
+            <div class="restart-wrapper">
+                <div class="restart-content">
+                    <h3>🔄 Restart HAVEN Relay</h3>
+                    <p class="help-text">Restart to apply configuration changes</p>
+                </div>
+                <div class="restart-action">
+                    <button class="btn btn-warning" onclick="restartHaven()">Restart Now</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
