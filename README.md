@@ -39,18 +39,69 @@ Haven operates as four specialized relays in one application:
 3. Search for "Haven Kit"
 4. Click Install
 
-### Option 2: Manual Installation
-1. Clone this repository into your Umbrel apps directory:
+### Option 2: Manual Installation via Community App Store
+
+**Prerequisites**: umbrelOS 1.0 or later
+
+#### Step 1: Create a Community App Store
+
+1. Fork or create a new repository using the [Umbrel Community App Store template](https://github.com/getumbrel/umbrel-community-app-store)
+
+2. Clone your community app store repository:
    ```bash
-   cd ~/umbrel/apps
+   git clone https://github.com/YOUR-USERNAME/YOUR-STORE-NAME.git
+   cd YOUR-STORE-NAME
+   ```
+
+3. Edit `umbrel-app-store.yml` to set your store ID and name:
+   ```yaml
+   id: "your-store-id"
+   name: "Your Store Name"
+   ```
+
+#### Step 2: Add Haven Kit to Your Store
+
+1. Clone Haven Kit into your community store directory:
+   ```bash
    git clone https://github.com/Letdown2491/haven-kit.git haven
    ```
 
-2. Install the app:
+2. Copy the required Umbrel files to your store's app directory:
    ```bash
-   cd ~/umbrel
-   ./scripts/app install haven
+   mkdir your-store-id-haven
+   cp haven/umbrel-app.yml your-store-id-haven/
+   cp haven/docker-compose.yml your-store-id-haven/
+   cp haven/exports.sh your-store-id-haven/
    ```
+
+3. Update the app ID in `your-store-id-haven/umbrel-app.yml` to match your naming convention:
+   ```yaml
+   id: your-store-id-haven
+   ```
+
+4. Push your changes:
+   ```bash
+   git add .
+   git commit -m "Add Haven Kit"
+   git push
+   ```
+
+#### Step 3: Add Community Store to Umbrel
+
+1. Open your Umbrel dashboard
+2. Navigate to the App Store
+3. Click the three-dot menu (⋮) in the top right corner
+4. Select "Community App Stores"
+5. Paste your repository URL: `https://github.com/YOUR-USERNAME/YOUR-STORE-NAME`
+6. Click "Add"
+
+#### Step 4: Install Haven
+
+1. Return to the App Store
+2. Find "Haven" in your community store section
+3. Click Install
+
+**Note**: Community app stores are not verified by Umbrel. Only add stores from developers you trust.
 
 ## Configuration
 
@@ -156,6 +207,9 @@ All Haven data is stored in volumes managed by Umbrel:
 Your data persists across container restarts and app updates.
 
 ## Development or Running Local Instance
+
+> **Note**: This section is for **local development and testing** using Docker or Podman on your computer.
+> **This is NOT for installing on Umbrel.** For Umbrel installation, see the [Installation on Umbrel](#installation-on-umbrel) section above.
 
 ### Building Locally
 
