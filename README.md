@@ -1,6 +1,9 @@
 # HAVEN Kit
 
 [![Community Store](https://img.shields.io/badge/Umbrel-Community%20Store-purple?logo=umbrella)](https://github.com/Letdown2491/haven-kit-umbrel)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Docker Relay](https://img.shields.io/badge/Docker-haven--relay-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/letdown2491/haven-relay)
+[![Docker Config UI](https://img.shields.io/badge/Docker-haven--config--ui-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/letdown2491/haven-config-ui)
 
 Simple configuration tool to set up a HAVEN Nostr relay with Docker or Podman with just a few clicks.
 
