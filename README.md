@@ -39,69 +39,30 @@ Haven operates as four specialized relays in one application:
 3. Search for "Haven Kit"
 4. Click Install
 
-### Option 2: Manual Installation via Community App Store
+### Option 2: Install from Community App Store
 
 **Prerequisites**: umbrelOS 1.0 or later
 
-#### Step 1: Create a Community App Store
-
-1. Fork or create a new repository using the [Umbrel Community App Store template](https://github.com/getumbrel/umbrel-community-app-store)
-
-2. Clone your community app store repository:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/YOUR-STORE-NAME.git
-   cd YOUR-STORE-NAME
-   ```
-
-3. Edit `umbrel-app-store.yml` to set your store ID and name:
-   ```yaml
-   id: "your-store-id"
-   name: "Your Store Name"
-   ```
-
-#### Step 2: Add Haven Kit to Your Store
-
-1. Clone Haven Kit into your community store directory:
-   ```bash
-   git clone https://github.com/Letdown2491/haven-kit.git haven
-   ```
-
-2. Copy the required Umbrel files to your store's app directory:
-   ```bash
-   mkdir your-store-id-haven
-   cp haven/umbrel-app.yml your-store-id-haven/
-   cp haven/docker-compose.yml your-store-id-haven/
-   cp haven/exports.sh your-store-id-haven/
-   ```
-
-3. Update the app ID in `your-store-id-haven/umbrel-app.yml` to match your naming convention:
-   ```yaml
-   id: your-store-id-haven
-   ```
-
-4. Push your changes:
-   ```bash
-   git add .
-   git commit -m "Add Haven Kit"
-   git push
-   ```
-
-#### Step 3: Add Community Store to Umbrel
+#### Step 1: Add the Haven Kit Community Store
 
 1. Open your Umbrel dashboard
 2. Navigate to the App Store
 3. Click the three-dot menu (⋮) in the top right corner
 4. Select "Community App Stores"
-5. Paste your repository URL: `https://github.com/YOUR-USERNAME/YOUR-STORE-NAME`
+5. Paste this repository URL:
+   ```
+   https://github.com/Letdown2491/haven-kit-umbrel
+   ```
 6. Click "Add"
 
-#### Step 4: Install Haven
+#### Step 2: Install Haven Kit
 
 1. Return to the App Store
-2. Find "Haven" in your community store section
+2. Find "Haven Kit" in your community store section
 3. Click Install
+4. Wait for the installation to complete
 
-**Note**: Community app stores are not verified by Umbrel. Only add stores from developers you trust.
+**Note**: Community app stores are not verified by Umbrel. This store is maintained by the Haven Kit community.
 
 ## Configuration
 
