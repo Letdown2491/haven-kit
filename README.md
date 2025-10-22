@@ -35,6 +35,23 @@ Haven operates as four specialized relays in one application:
 - Optional S3-compatible cloud backups
 - Docker and Podman support
 
+## Screenshots
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%">
+        <img src="1.jpg" alt="Haven Kit Info" />
+        <p align="center"><em>Haven Kit Information</em></p>
+      </td>
+      <td width="50%">
+        <img src="2.jpg" alt="Haven Kit Configuration" />
+        <p align="center"><em>Configuration Interface</em></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
 ## Installation on Umbrel
 
 ### Option 1: Through Umbrel App Store (Coming Soon)
