@@ -219,7 +219,7 @@
                     <div class="wizard-step" data-step="1">
                         <div id="simple-config-step" style="display: none;">
                             <h2>👤 Simple Configuration</h2>
-                            <p class="help-text">Just two pieces of information to get started!</p>
+                            <p class="help-text">Just a few pieces of information to get started!</p>
 
                             <div class="form-group">
                                 <label class="form-label">Your Nostr Public Key (npub)*</label>
@@ -234,6 +234,13 @@
                                        placeholder="e.g., Geek, Alice, Bob">
                                 <span class="form-hint">Used to name your relays (e.g., "Geek's Private Relay")</span>
                             </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Relay URL*</label>
+                                <input type="text" name="RELAY_URL_SIMPLE" id="RELAY_URL_SIMPLE" required
+                                       placeholder="wss://relay.yourdomain.com or ws://localhost:3355">
+                                <span class="form-hint">The public URL where your relay can be accessed (use wss:// for production, ws:// for local testing)</span>
+                            </div>
                         </div>
 
                         <div id="full-config-step" style="display: none;">
@@ -242,7 +249,7 @@
 
                             <div class="form-group">
                                 <label class="form-label">Your Nostr Public Key (npub)*</label>
-                                <input type="text" name="OWNER_NPUB" id="OWNER_NPUB_FULL" required
+                                <input type="text" name="OWNER_NPUB_FULL" id="OWNER_NPUB_FULL" required
                                        placeholder="npub1..." pattern="npub1[a-z0-9]{58,}">
                                 <span class="form-hint">Get your npub from any Nostr client or <a href="https://nostr.how" target="_blank">nostr.how</a></span>
                             </div>

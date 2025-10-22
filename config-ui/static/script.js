@@ -5,7 +5,8 @@ let relayConfigs = {
 };
 
 let currentStep = 0;
-const totalSteps = 8;
+const totalSteps = 8; // Total number of steps (0-7)
+const lastStep = 7; // Last step index in Full Configuration
 let configMode = null; // 'simple' or 'full'
 
 // Initialize on page load
@@ -17,14 +18,50 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRelayConfig('import');
     checkStatus();
     updateWizardStep(); // Initialize navigation buttons
+    syncNpubFields(); // Sync npub fields between simple and full mode
 
     // Check status every 10 seconds
     setInterval(checkStatus, 10000);
 });
 
+// Sync npub fields between simple and full mode
+function syncNpubFields() {
+    const simpleInput = document.getElementById('OWNER_NPUB');
+    const fullInput = document.getElementById('OWNER_NPUB_FULL');
+
+    if (simpleInput && fullInput) {
+        // When simple input changes, update full input
+        simpleInput.addEventListener('input', () => {
+            fullInput.value = simpleInput.value;
+        });
+
+        // When full input changes, update simple input
+        fullInput.addEventListener('input', () => {
+            simpleInput.value = fullInput.value;
+        });
+    }
+
+    // Sync RELAY_URL fields between simple and full mode
+    const simpleUrlInput = document.getElementById('RELAY_URL_SIMPLE');
+    const fullUrlInput = document.querySelector('[name="RELAY_URL"]');
+
+    if (simpleUrlInput && fullUrlInput) {
+        // When simple input changes, update full input
+        simpleUrlInput.addEventListener('input', () => {
+            fullUrlInput.value = simpleUrlInput.value;
+        });
+
+        // When full input changes, update simple input
+        fullUrlInput.addEventListener('input', () => {
+            simpleUrlInput.value = fullUrlInput.value;
+        });
+    }
+}
+
 // Wizard Navigation
 function nextStep() {
-    if (currentStep < totalSteps) {
+    // Allow advancing through step 6, which increments to step 7 (the last step)
+    if (currentStep < lastStep) {
         // Validate current step (skip validation for step 0)
         if (currentStep > 0) {
             const currentStepEl = document.querySelector(`.wizard-step[data-step="${currentStep}"]`);
@@ -70,16 +107,25 @@ function setConfigMode(mode) {
     if (mode === 'simple') {
         simpleStep.style.display = 'block';
         fullStep.style.display = 'none';
-        // Clear USERNAME required attribute from full mode
+        // Set required attributes for simple mode fields
         document.getElementById('USERNAME').required = true;
         document.getElementById('OWNER_NPUB').required = true;
+        document.getElementById('RELAY_URL_SIMPLE').required = true;
+        // Clear required from full mode fields
         document.getElementById('OWNER_NPUB_FULL').required = false;
+        const fullUrlInput = document.querySelector('[name="RELAY_URL"]');
+        if (fullUrlInput) fullUrlInput.required = false;
     } else {
         simpleStep.style.display = 'none';
         fullStep.style.display = 'block';
+        // Clear required from simple mode fields
         document.getElementById('USERNAME').required = false;
         document.getElementById('OWNER_NPUB').required = false;
+        document.getElementById('RELAY_URL_SIMPLE').required = false;
+        // Set required for full mode fields
         document.getElementById('OWNER_NPUB_FULL').required = true;
+        const fullUrlInput = document.querySelector('[name="RELAY_URL"]');
+        if (fullUrlInput) fullUrlInput.required = true;
     }
 
     updateWizardStep();
@@ -175,9 +221,10 @@ function updateWizardStep() {
     } else {
         prevBtn.style.display = 'inline-flex';
         // On last step, change Next button to Save Configuration
-        if (currentStep === totalSteps) {
+        if (currentStep === lastStep) {
             nextBtn.innerHTML = '💾 Save Configuration';
             nextBtn.onclick = saveConfiguration;
+            nextBtn.style.display = 'inline-flex';
         } else {
             nextBtn.innerHTML = 'Next →';
             nextBtn.onclick = nextStep;
@@ -203,14 +250,52 @@ async function loadConfigIntoForm() {
             envContent.split('\n').forEach(line => {
                 const match = line.match(/^([A-Z_]+)=(.*)$/);
                 if (match) {
-                    const [, key, value] = match;
+                    const [, key, rawValue] = match;
+
+                    // Clean value by removing quotes
+                    const cleanValue = rawValue.replace(/^"(.*)"$/, '$1').trim();
+
+                    // Special handling for OWNER_NPUB - populate both simple and full mode fields
+                    if (key === 'OWNER_NPUB') {
+                        const simpleInput = document.getElementById('OWNER_NPUB');
+                        const fullInput = document.getElementById('OWNER_NPUB_FULL');
+                        if (simpleInput) simpleInput.value = cleanValue;
+                        if (fullInput) fullInput.value = cleanValue;
+                        return;
+                    }
+
+                    // Special handling for OWNER_USERNAME - map to USERNAME field
+                    if (key === 'OWNER_USERNAME') {
+                        const usernameInput = document.getElementById('USERNAME');
+                        if (usernameInput) usernameInput.value = cleanValue;
+                        return;
+                    }
+
+                    // Special handling for RELAY_URL - populate both simple and full mode fields
+                    if (key === 'RELAY_URL') {
+                        const simpleInput = document.getElementById('RELAY_URL_SIMPLE');
+                        const fullInput = form.querySelector('[name="RELAY_URL"]');
+                        if (simpleInput) simpleInput.value = cleanValue;
+                        if (fullInput) fullInput.value = cleanValue;
+                        return;
+                    }
+
+                    // Find input field by name attribute
                     const input = form.querySelector(`[name="${key}"]`);
                     if (input) {
                         if (input.type === 'checkbox') {
-                            input.checked = value.toLowerCase() === 'true';
+                            // Handle boolean values (true/false, with or without quotes)
+                            input.checked = cleanValue.toLowerCase() === 'true';
+                        } else if (input.tagName === 'SELECT') {
+                            // Handle select dropdowns
+                            input.value = cleanValue;
+                            // Trigger onchange if it exists to handle dependent fields (like S3)
+                            if (input.onchange) {
+                                input.onchange.call(input);
+                            }
                         } else {
-                            // Remove quotes from value
-                            input.value = value.replace(/^"(.+)"$/, '$1');
+                            // Handle text, number, date, url inputs
+                            input.value = cleanValue;
                         }
                     }
                 }
@@ -221,10 +306,35 @@ async function loadConfigIntoForm() {
     }
 }
 
-// Generate .env file from form
-function generateEnvFromForm() {
+// Parse existing .env file into key-value map
+function parseEnvFile(envContent) {
+    const envMap = new Map();
+    const lines = envContent.split('\n');
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        // Skip comments and empty lines
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        const match = trimmed.match(/^([A-Z_]+)=(.*)$/);
+        if (match) {
+            const [, key, value] = match;
+            envMap.set(key, value);
+        }
+    }
+
+    return envMap;
+}
+
+// Generate .env file from form, merging with existing values
+async function generateEnvFromForm() {
     const form = document.getElementById('config-form');
     const formData = new FormData(form);
+
+    // Validate that we have a valid config mode
+    if (!configMode || (configMode !== 'simple' && configMode !== 'full')) {
+        throw new Error('Invalid configuration mode. Please restart configuration from the mode selection.');
+    }
 
     // Get the appropriate npub based on mode
     let ownerNpub;
@@ -236,18 +346,76 @@ function generateEnvFromForm() {
         formData.set('OWNER_NPUB', ownerNpub);
     }
 
-    // Simple mode - use defaults with username
+    // Validate that we have a valid npub
+    if (!ownerNpub || ownerNpub === 'null' || ownerNpub === 'undefined' || ownerNpub.trim() === '') {
+        throw new Error('OWNER_NPUB is required. Please enter a valid npub.');
+    }
+
+    // Additional validation: check npub format
+    if (!ownerNpub.startsWith('npub1')) {
+        throw new Error('Invalid npub format. Must start with "npub1".');
+    }
+
+    // Load existing .env file to preserve values not in the form
+    let existingEnv = new Map();
+    try {
+        const response = await fetch('/api/config/env');
+        const data = await response.json();
+        if (data.success) {
+            existingEnv = parseEnvFile(data.content);
+        }
+    } catch (error) {
+        console.warn('Could not load existing .env, using defaults', error);
+    }
+
+    // Helper function to get value from form, existing env, or default
+    const getVal = (formKey, envKey = formKey, defaultValue = '') => {
+        // If form has the field and it's not null/undefined, use it
+        const formValue = formData.get(formKey);
+        if (formValue !== null && formValue !== undefined) {
+            return formValue;
+        }
+        // Otherwise use existing env value or default
+        return existingEnv.get(envKey) || defaultValue;
+    };
+
+    // Helper for boolean values
+    const getBool = (formKey, envKey = formKey, defaultValue = 'false') => {
+        const formValue = formData.get(formKey);
+        if (formValue !== null) {
+            return formValue === 'true';
+        }
+        const existingValue = existingEnv.get(envKey);
+        return existingValue !== undefined ? existingValue : defaultValue;
+    };
+
+    // Helper for numeric values
+    const getNum = (formKey, envKey = formKey, defaultValue = 0) => {
+        const formValue = formData.get(formKey);
+        if (formValue !== null && formValue !== undefined && formValue !== '') {
+            return formValue;
+        }
+        const existingValue = existingEnv.get(envKey);
+        return existingValue !== undefined ? existingValue.replace(/^"(.*)"$/, '$1') : defaultValue;
+    };
+
+    // Simple mode - use defaults with username, but preserve any existing custom values
     if (configMode === 'simple') {
-        const username = formData.get('USERNAME') || 'My';
+        const username = formData.get('USERNAME') || existingEnv.get('OWNER_USERNAME')?.replace(/^"(.*)"$/, '$1') || 'My';
+        const relayUrl = formData.get('RELAY_URL_SIMPLE') || existingEnv.get('RELAY_URL')?.replace(/^"(.*)"$/, '$1') || 'ws://localhost:3355';
+
+        // Preserve existing icon URLs and other custom settings from existing .env
+        const getExistingVal = (key) => existingEnv.get(key)?.replace(/^"(.*)"$/, '$1') || '';
 
         return `# Owner Configuration (REQUIRED)
 # Your Nostr public key (npub format)
 # Get this from your Nostr client or generate one at https://nostr.how
 # **IMPORTANT**: Replace this example npub with your own npub!
 OWNER_NPUB="${ownerNpub}"
+OWNER_USERNAME="${username}"
 
 # Relay Configuration (REQUIRED)
-RELAY_URL="ws://localhost:3355"
+RELAY_URL="${relayUrl}"
 RELAY_PORT=3355
 RELAY_BIND_ADDRESS="0.0.0.0"
 
@@ -262,99 +430,106 @@ BLOSSOM_PATH="/haven/blossom"
 PRIVATE_RELAY_NAME="${username}'s Private Relay"
 PRIVATE_RELAY_NPUB="${ownerNpub}"
 PRIVATE_RELAY_DESCRIPTION="A safe place to store my drafts and ecash"
-PRIVATE_RELAY_ICON=""
+PRIVATE_RELAY_ICON="${getExistingVal('PRIVATE_RELAY_ICON')}"
 
 ## Private Relay Rate Limiters
-PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=50
-PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL=1
-PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=100
-PRIVATE_RELAY_ALLOW_EMPTY_FILTERS=true
-PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS=true
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=5
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '50'}
+PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
+PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
+PRIVATE_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('PRIVATE_RELAY_ALLOW_EMPTY_FILTERS') || 'true'}
+PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS') || 'true'}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '5'}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Chat Relay Settings
 CHAT_RELAY_NAME="${username}'s Chat Relay"
 CHAT_RELAY_NPUB="${ownerNpub}"
 CHAT_RELAY_DESCRIPTION="A relay for private chats"
-CHAT_RELAY_ICON=""
-CHAT_RELAY_WOT_DEPTH=3
-CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS=24
-CHAT_RELAY_MINIMUM_FOLLOWERS=3
+CHAT_RELAY_ICON="${getExistingVal('CHAT_RELAY_ICON')}"
+CHAT_RELAY_WOT_DEPTH=${getExistingVal('CHAT_RELAY_WOT_DEPTH') || '3'}
+CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS=${getExistingVal('CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS') || '24'}
+CHAT_RELAY_MINIMUM_FOLLOWERS=${getExistingVal('CHAT_RELAY_MINIMUM_FOLLOWERS') || '3'}
 
 ## Chat Relay Rate Limiters
-CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=50
-CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=1
-CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=100
-CHAT_RELAY_ALLOW_EMPTY_FILTERS=false
-CHAT_RELAY_ALLOW_COMPLEX_FILTERS=false
-CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=3
-CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '50'}
+CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
+CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
+CHAT_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
+CHAT_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '3'}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Outbox Relay Settings
 OUTBOX_RELAY_NAME="${username}'s Outbox Relay"
 OUTBOX_RELAY_NPUB="${ownerNpub}"
 OUTBOX_RELAY_DESCRIPTION="A relay and Blossom server for public messages and media"
-OUTBOX_RELAY_ICON=""
+OUTBOX_RELAY_ICON="${getExistingVal('OUTBOX_RELAY_ICON')}"
 
 ## Outbox Relay Rate Limiters
-OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=10
-OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=60
-OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=100
-OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=false
-OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=false
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=1
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
+OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '60'}
+OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
+OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
+OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Inbox Relay Settings
 INBOX_RELAY_NAME="${username}'s Inbox Relay"
 INBOX_RELAY_NPUB="${ownerNpub}"
 INBOX_RELAY_DESCRIPTION="Send your interactions with my notes here"
-INBOX_RELAY_ICON=""
-INBOX_PULL_INTERVAL_SECONDS=600
+INBOX_RELAY_ICON="${getExistingVal('INBOX_RELAY_ICON')}"
+INBOX_PULL_INTERVAL_SECONDS=${getExistingVal('INBOX_PULL_INTERVAL_SECONDS') || '600'}
 
 ## Inbox Relay Rate Limiters
-INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=10
-INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=1
-INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=20
-INBOX_RELAY_ALLOW_EMPTY_FILTERS=false
-INBOX_RELAY_ALLOW_COMPLEX_FILTERS=false
-INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=1
-INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
+INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
+INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '20'}
+INBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
+INBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Import Settings
-IMPORT_START_DATE="2025-10-13"
-IMPORT_QUERY_INTERVAL_SECONDS=600
-IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=60
-IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=120
-IMPORT_SEED_RELAYS_FILE="/haven-config/relays_import.json"
+IMPORT_START_DATE="${getExistingVal('IMPORT_START_DATE') || '2025-10-13'}"
+IMPORT_QUERY_INTERVAL_SECONDS=${getExistingVal('IMPORT_QUERY_INTERVAL_SECONDS') || '600'}
+IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS') || '60'}
+IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS') || '120'}
+IMPORT_SEED_RELAYS_FILE="${getExistingVal('IMPORT_SEED_RELAYS_FILE') || '/haven-config/relays_import.json'}"
 
 ## Backup Settings
-BACKUP_PROVIDER="none"
-BACKUP_INTERVAL_HOURS=24
+BACKUP_PROVIDER="${getExistingVal('BACKUP_PROVIDER') || 'none'}"
+BACKUP_INTERVAL_HOURS=${getExistingVal('BACKUP_INTERVAL_HOURS') || '24'}
 
 ## Blastr Settings
-BLASTR_RELAYS_FILE="/haven-config/relays_blastr.json"
+BLASTR_RELAYS_FILE="${getExistingVal('BLASTR_RELAYS_FILE') || '/haven-config/relays_blastr.json'}"
 
 ## WOT Settings
-WOT_FETCH_TIMEOUT_SECONDS=60
+WOT_FETCH_TIMEOUT_SECONDS=${getExistingVal('WOT_FETCH_TIMEOUT_SECONDS') || '60'}
 
 ## Logging
-HAVEN_LOG_LEVEL="INFO"
-TZ="UTC"
+HAVEN_LOG_LEVEL="${getExistingVal('HAVEN_LOG_LEVEL') || 'INFO'}"
+TZ="${getExistingVal('TZ') || 'UTC'}"
 `;
     }
 
     // Full mode - use form values
+    // Get username if it was previously set (for consistency)
+    const username = formData.get('USERNAME') || existingEnv.get('OWNER_USERNAME')?.replace(/^"(.*)"$/, '$1') || '';
+
+    // Helper for getting existing values (same as Simple mode)
+    const getExistingVal = (key) => existingEnv.get(key)?.replace(/^"(.*)"$/, '$1') || '';
+
     let envContent = `# Owner Configuration (REQUIRED)
 # Your Nostr public key (npub format)
 # Get this from your Nostr client or generate one at https://nostr.how
 # **IMPORTANT**: Replace this example npub with your own npub!
 OWNER_NPUB="${ownerNpub}"
+OWNER_USERNAME="${username}"
 
 # Relay Configuration (REQUIRED)
 RELAY_URL="${formData.get('RELAY_URL')}"
@@ -372,7 +547,7 @@ BLOSSOM_PATH="${formData.get('BLOSSOM_PATH')}"
 PRIVATE_RELAY_NAME="${formData.get('PRIVATE_RELAY_NAME')}"
 PRIVATE_RELAY_NPUB="${ownerNpub}"
 PRIVATE_RELAY_DESCRIPTION="${formData.get('PRIVATE_RELAY_DESCRIPTION')}"
-PRIVATE_RELAY_ICON="${formData.get('PRIVATE_RELAY_ICON') || ''}"
+PRIVATE_RELAY_ICON="${formData.get('PRIVATE_RELAY_ICON') ? formData.get('PRIVATE_RELAY_ICON') : ''}"
 
 ## Private Relay Rate Limiters
 PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${formData.get('PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL')}
@@ -380,68 +555,68 @@ PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL=${formData.get('PRIVATE_RELAY_EVENT_IP_L
 PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${formData.get('PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS')}
 PRIVATE_RELAY_ALLOW_EMPTY_FILTERS=${formData.get('PRIVATE_RELAY_ALLOW_EMPTY_FILTERS') === 'true'}
 PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS=${formData.get('PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS') === 'true'}
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=5
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '5'}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Chat Relay Settings
 CHAT_RELAY_NAME="${formData.get('CHAT_RELAY_NAME')}"
 CHAT_RELAY_NPUB="${ownerNpub}"
 CHAT_RELAY_DESCRIPTION="${formData.get('CHAT_RELAY_DESCRIPTION')}"
-CHAT_RELAY_ICON="${formData.get('CHAT_RELAY_ICON') || ''}"
+CHAT_RELAY_ICON="${formData.get('CHAT_RELAY_ICON') ? formData.get('CHAT_RELAY_ICON') : ''}"
 CHAT_RELAY_WOT_DEPTH=${formData.get('CHAT_RELAY_WOT_DEPTH')}
 CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS=${formData.get('CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS')}
 CHAT_RELAY_MINIMUM_FOLLOWERS=${formData.get('CHAT_RELAY_MINIMUM_FOLLOWERS')}
 
 ## Chat Relay Rate Limiters
-CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=50
-CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=1
-CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=100
-CHAT_RELAY_ALLOW_EMPTY_FILTERS=false
-CHAT_RELAY_ALLOW_COMPLEX_FILTERS=false
-CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=3
-CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '50'}
+CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
+CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
+CHAT_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
+CHAT_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '3'}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Outbox Relay Settings
 OUTBOX_RELAY_NAME="${formData.get('OUTBOX_RELAY_NAME')}"
 OUTBOX_RELAY_NPUB="${ownerNpub}"
 OUTBOX_RELAY_DESCRIPTION="${formData.get('OUTBOX_RELAY_DESCRIPTION')}"
-OUTBOX_RELAY_ICON="${formData.get('OUTBOX_RELAY_ICON') || ''}"
+OUTBOX_RELAY_ICON="${formData.get('OUTBOX_RELAY_ICON') ? formData.get('OUTBOX_RELAY_ICON') : ''}"
 
 ## Outbox Relay Rate Limiters
-OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=10
-OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=60
-OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=100
-OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=false
-OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=false
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=1
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
+OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '60'}
+OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
+OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
+OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Inbox Relay Settings
 INBOX_RELAY_NAME="${formData.get('INBOX_RELAY_NAME')}"
 INBOX_RELAY_NPUB="${ownerNpub}"
 INBOX_RELAY_DESCRIPTION="${formData.get('INBOX_RELAY_DESCRIPTION')}"
-INBOX_RELAY_ICON="${formData.get('INBOX_RELAY_ICON') || ''}"
+INBOX_RELAY_ICON="${formData.get('INBOX_RELAY_ICON') ? formData.get('INBOX_RELAY_ICON') : ''}"
 INBOX_PULL_INTERVAL_SECONDS=${formData.get('INBOX_PULL_INTERVAL_SECONDS')}
 
 ## Inbox Relay Rate Limiters
-INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=10
-INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=1
-INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=20
-INBOX_RELAY_ALLOW_EMPTY_FILTERS=false
-INBOX_RELAY_ALLOW_COMPLEX_FILTERS=false
-INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=3
-INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=1
-INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=9
+INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
+INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
+INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '20'}
+INBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
+INBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
 
 ## Import Settings
 IMPORT_START_DATE="${formData.get('IMPORT_START_DATE')}"
-IMPORT_QUERY_INTERVAL_SECONDS=600
-IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=60
-IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=120
-IMPORT_SEED_RELAYS_FILE="/haven-config/relays_import.json"
+IMPORT_QUERY_INTERVAL_SECONDS=${getExistingVal('IMPORT_QUERY_INTERVAL_SECONDS') || '600'}
+IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS') || '60'}
+IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS') || '120'}
+IMPORT_SEED_RELAYS_FILE="${getExistingVal('IMPORT_SEED_RELAYS_FILE') || '/haven-config/relays_import.json'}"
 
 ## Backup Settings
 BACKUP_PROVIDER="${formData.get('BACKUP_PROVIDER')}"
@@ -462,14 +637,14 @@ S3_BUCKET_NAME="${formData.get('S3_BUCKET_NAME') || ''}"
     }
 
     envContent += `## Blastr Settings
-BLASTR_RELAYS_FILE="/haven-config/relays_blastr.json"
+BLASTR_RELAYS_FILE="${getExistingVal('BLASTR_RELAYS_FILE') || '/haven-config/relays_blastr.json'}"
 
 ## WOT Settings
-WOT_FETCH_TIMEOUT_SECONDS=60
+WOT_FETCH_TIMEOUT_SECONDS=${getExistingVal('WOT_FETCH_TIMEOUT_SECONDS') || '60'}
 
 ## Logging
-HAVEN_LOG_LEVEL="INFO"
-TZ="UTC"
+HAVEN_LOG_LEVEL="${getExistingVal('HAVEN_LOG_LEVEL') || 'INFO'}"
+TZ="${getExistingVal('TZ') || 'UTC'}"
 `;
 
     return envContent;
@@ -484,7 +659,17 @@ async function saveConfiguration() {
         btn.disabled = true;
         btn.innerHTML = '<span class="loading"></span> Saving...';
 
-        const envContent = generateEnvFromForm();
+        // Generate and validate configuration
+        let envContent;
+        try {
+            envContent = await generateEnvFromForm();
+        } catch (validationError) {
+            // Show validation error and return early
+            showNotification('❌ ' + validationError.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+            return;
+        }
 
         const response = await fetch('/api/config/env', {
             method: 'POST',
@@ -500,11 +685,13 @@ async function saveConfiguration() {
             showNotification('✓ Configuration saved successfully! You can now restart HAVEN to apply changes.', 'success');
             // Update the advanced editor too
             document.getElementById('env-editor').value = envContent;
+            // Reload form to ensure all fields are in sync
+            loadConfigIntoForm();
         } else {
             showNotification('Failed to save: ' + data.error, 'error');
         }
     } catch (error) {
-        showNotification('Error saving configuration', 'error');
+        showNotification('Error saving configuration: ' + error.message, 'error');
         console.error(error);
     } finally {
         btn.disabled = false;
@@ -544,6 +731,13 @@ function initTabs() {
 
             button.classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            // Reset wizard to step 0 when Configuration tab is clicked
+            if (tabName === 'wizard') {
+                currentStep = 0;
+                configMode = null;
+                updateWizardStep();
+            }
 
             // Load import info when Import Notes tab is clicked
             if (tabName === 'import-notes') {
@@ -674,6 +868,8 @@ async function saveEnvConfigAdvanced() {
 
         if (data.success) {
             showNotification('✓ Configuration saved successfully', 'success');
+            // Reload form to ensure all fields are in sync
+            loadConfigIntoForm();
         } else {
             showNotification('Failed to save: ' + data.error, 'error');
         }

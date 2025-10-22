@@ -26,7 +26,6 @@ ENV/
 Thumbs.db
 
 # Environment (but keep the root .env for docker-compose)
-data/config/.env
 .env.local
 .env.production
 
