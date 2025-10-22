@@ -273,10 +273,11 @@ async function loadConfigIntoForm() {
 
                     // Special handling for RELAY_URL - populate both simple and full mode fields
                     if (key === 'RELAY_URL') {
+                        const normalized = normalizeRelayHost(cleanValue);
                         const simpleInput = document.getElementById('RELAY_URL_SIMPLE');
                         const fullInput = form.querySelector('[name="RELAY_URL"]');
-                        if (simpleInput) simpleInput.value = cleanValue;
-                        if (fullInput) fullInput.value = cleanValue;
+                        if (simpleInput) simpleInput.value = normalized;
+                        if (fullInput) fullInput.value = normalized;
                         return;
                     }
 
@@ -379,6 +380,9 @@ async function generateEnvFromForm() {
         return existingEnv.get(envKey) || defaultValue;
     };
 
+    const boolVal = (key, defaultValue) => normalizeEnvBoolean(existingEnv.get(key), defaultValue);
+    const numVal = (key, defaultValue) => normalizeEnvNumber(existingEnv.get(key), defaultValue);
+
     // Helper for boolean values
     const getBool = (formKey, envKey = formKey, defaultValue = 'false') => {
         const formValue = formData.get(formKey);
@@ -402,7 +406,9 @@ async function generateEnvFromForm() {
     // Simple mode - use defaults with username, but preserve any existing custom values
     if (configMode === 'simple') {
         const username = formData.get('USERNAME') || existingEnv.get('OWNER_USERNAME')?.replace(/^"(.*)"$/, '$1') || 'My';
-        const relayUrl = formData.get('RELAY_URL_SIMPLE') || existingEnv.get('RELAY_URL')?.replace(/^"(.*)"$/, '$1') || 'ws://localhost:3355';
+        const relayUrlRaw = formData.get('RELAY_URL_SIMPLE') || existingEnv.get('RELAY_URL')?.replace(/^"(.*)"$/, '$1') || 'localhost:3355';
+        const relayHost = validateRelayHost(relayUrlRaw);
+        formData.set('RELAY_URL', relayHost);
 
         // Preserve existing icon URLs and other custom settings from existing .env
         const getExistingVal = (key) => existingEnv.get(key)?.replace(/^"(.*)"$/, '$1') || '';
@@ -415,7 +421,7 @@ OWNER_NPUB="${ownerNpub}"
 OWNER_USERNAME="${username}"
 
 # Relay Configuration (REQUIRED)
-RELAY_URL="${relayUrl}"
+RELAY_URL="${relayHost}"
 RELAY_PORT=3355
 RELAY_BIND_ADDRESS="0.0.0.0"
 
@@ -433,33 +439,33 @@ PRIVATE_RELAY_DESCRIPTION="A safe place to store my drafts and ecash"
 PRIVATE_RELAY_ICON="${getExistingVal('PRIVATE_RELAY_ICON')}"
 
 ## Private Relay Rate Limiters
-PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '50'}
-PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
-PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
-PRIVATE_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('PRIVATE_RELAY_ALLOW_EMPTY_FILTERS') || 'true'}
-PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS') || 'true'}
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '5'}
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${numVal('PRIVATE_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL', 50)}
+PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL=${numVal('PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL', 1)}
+PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${numVal('PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS', 100)}
+PRIVATE_RELAY_ALLOW_EMPTY_FILTERS=${boolVal('PRIVATE_RELAY_ALLOW_EMPTY_FILTERS', true)}
+PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS=${boolVal('PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS', true)}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 5)}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Chat Relay Settings
 CHAT_RELAY_NAME="${username}'s Chat Relay"
 CHAT_RELAY_NPUB="${ownerNpub}"
 CHAT_RELAY_DESCRIPTION="A relay for private chats"
 CHAT_RELAY_ICON="${getExistingVal('CHAT_RELAY_ICON')}"
-CHAT_RELAY_WOT_DEPTH=${getExistingVal('CHAT_RELAY_WOT_DEPTH') || '3'}
-CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS=${getExistingVal('CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS') || '24'}
-CHAT_RELAY_MINIMUM_FOLLOWERS=${getExistingVal('CHAT_RELAY_MINIMUM_FOLLOWERS') || '3'}
+CHAT_RELAY_WOT_DEPTH=${numVal('CHAT_RELAY_WOT_DEPTH', 3)}
+CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS=${numVal('CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS', 24)}
+CHAT_RELAY_MINIMUM_FOLLOWERS=${numVal('CHAT_RELAY_MINIMUM_FOLLOWERS', 3)}
 
 ## Chat Relay Rate Limiters
-CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '50'}
-CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
-CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
-CHAT_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
-CHAT_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
-CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '3'}
-CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${numVal('CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL', 50)}
+CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=${numVal('CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL', 1)}
+CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${numVal('CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS', 100)}
+CHAT_RELAY_ALLOW_EMPTY_FILTERS=${boolVal('CHAT_RELAY_ALLOW_EMPTY_FILTERS', false)}
+CHAT_RELAY_ALLOW_COMPLEX_FILTERS=${boolVal('CHAT_RELAY_ALLOW_COMPLEX_FILTERS', false)}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 3)}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Outbox Relay Settings
 OUTBOX_RELAY_NAME="${username}'s Outbox Relay"
@@ -468,48 +474,48 @@ OUTBOX_RELAY_DESCRIPTION="A relay and Blossom server for public messages and med
 OUTBOX_RELAY_ICON="${getExistingVal('OUTBOX_RELAY_ICON')}"
 
 ## Outbox Relay Rate Limiters
-OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
-OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '60'}
-OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
-OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
-OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${numVal('OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL', 10)}
+OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${numVal('OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL', 60)}
+OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${numVal('OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS', 100)}
+OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=${boolVal('OUTBOX_RELAY_ALLOW_EMPTY_FILTERS', false)}
+OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=${boolVal('OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS', false)}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 1)}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Inbox Relay Settings
 INBOX_RELAY_NAME="${username}'s Inbox Relay"
 INBOX_RELAY_NPUB="${ownerNpub}"
 INBOX_RELAY_DESCRIPTION="Send your interactions with my notes here"
 INBOX_RELAY_ICON="${getExistingVal('INBOX_RELAY_ICON')}"
-INBOX_PULL_INTERVAL_SECONDS=${getExistingVal('INBOX_PULL_INTERVAL_SECONDS') || '600'}
+INBOX_PULL_INTERVAL_SECONDS=${numVal('INBOX_PULL_INTERVAL_SECONDS', 600)}
 
 ## Inbox Relay Rate Limiters
-INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
-INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
-INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '20'}
-INBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
-INBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
-INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
-INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${numVal('INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL', 10)}
+INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${numVal('INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL', 1)}
+INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${numVal('INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS', 20)}
+INBOX_RELAY_ALLOW_EMPTY_FILTERS=${boolVal('INBOX_RELAY_ALLOW_EMPTY_FILTERS', false)}
+INBOX_RELAY_ALLOW_COMPLEX_FILTERS=${boolVal('INBOX_RELAY_ALLOW_COMPLEX_FILTERS', false)}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 1)}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Import Settings
 IMPORT_START_DATE="${getExistingVal('IMPORT_START_DATE') || '2025-10-13'}"
-IMPORT_QUERY_INTERVAL_SECONDS=${getExistingVal('IMPORT_QUERY_INTERVAL_SECONDS') || '600'}
-IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS') || '60'}
-IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS') || '120'}
+IMPORT_QUERY_INTERVAL_SECONDS=${numVal('IMPORT_QUERY_INTERVAL_SECONDS', 600)}
+IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=${numVal('IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS', 60)}
+IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=${numVal('IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS', 120)}
 IMPORT_SEED_RELAYS_FILE="${getExistingVal('IMPORT_SEED_RELAYS_FILE') || '/haven-config/relays_import.json'}"
 
 ## Backup Settings
 BACKUP_PROVIDER="${getExistingVal('BACKUP_PROVIDER') || 'none'}"
-BACKUP_INTERVAL_HOURS=${getExistingVal('BACKUP_INTERVAL_HOURS') || '24'}
+BACKUP_INTERVAL_HOURS=${numVal('BACKUP_INTERVAL_HOURS', 24)}
 
 ## Blastr Settings
 BLASTR_RELAYS_FILE="${getExistingVal('BLASTR_RELAYS_FILE') || '/haven-config/relays_blastr.json'}"
 
 ## WOT Settings
-WOT_FETCH_TIMEOUT_SECONDS=${getExistingVal('WOT_FETCH_TIMEOUT_SECONDS') || '60'}
+WOT_FETCH_TIMEOUT_SECONDS=${numVal('WOT_FETCH_TIMEOUT_SECONDS', 60)}
 
 ## Logging
 HAVEN_LOG_LEVEL="${getExistingVal('HAVEN_LOG_LEVEL') || 'INFO'}"
@@ -524,6 +530,13 @@ TZ="${getExistingVal('TZ') || 'UTC'}"
     // Helper for getting existing values (same as Simple mode)
     const getExistingVal = (key) => existingEnv.get(key)?.replace(/^"(.*)"$/, '$1') || '';
 
+    const relayUrlRaw =
+        formData.get('RELAY_URL') ||
+        existingEnv.get('RELAY_URL')?.replace(/^"(.*)"$/, '$1') ||
+        '';
+    const relayHost = validateRelayHost(relayUrlRaw);
+    formData.set('RELAY_URL', relayHost);
+
     let envContent = `# Owner Configuration (REQUIRED)
 # Your Nostr public key (npub format)
 # Get this from your Nostr client or generate one at https://nostr.how
@@ -532,7 +545,7 @@ OWNER_NPUB="${ownerNpub}"
 OWNER_USERNAME="${username}"
 
 # Relay Configuration (REQUIRED)
-RELAY_URL="${formData.get('RELAY_URL')}"
+RELAY_URL="${relayHost}"
 RELAY_PORT=${formData.get('RELAY_PORT')}
 RELAY_BIND_ADDRESS="${formData.get('RELAY_BIND_ADDRESS')}"
 
@@ -555,9 +568,9 @@ PRIVATE_RELAY_EVENT_IP_LIMITER_INTERVAL=${formData.get('PRIVATE_RELAY_EVENT_IP_L
 PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${formData.get('PRIVATE_RELAY_EVENT_IP_LIMITER_MAX_TOKENS')}
 PRIVATE_RELAY_ALLOW_EMPTY_FILTERS=${formData.get('PRIVATE_RELAY_ALLOW_EMPTY_FILTERS') === 'true'}
 PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS=${formData.get('PRIVATE_RELAY_ALLOW_COMPLEX_FILTERS') === 'true'}
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '5'}
-PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 5)}
+PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('PRIVATE_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Chat Relay Settings
 CHAT_RELAY_NAME="${formData.get('CHAT_RELAY_NAME')}"
@@ -569,14 +582,14 @@ CHAT_RELAY_WOT_REFRESH_INTERVAL_HOURS=${formData.get('CHAT_RELAY_WOT_REFRESH_INT
 CHAT_RELAY_MINIMUM_FOLLOWERS=${formData.get('CHAT_RELAY_MINIMUM_FOLLOWERS')}
 
 ## Chat Relay Rate Limiters
-CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '50'}
-CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
-CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
-CHAT_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
-CHAT_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('CHAT_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
-CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '3'}
-CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${numVal('CHAT_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL', 50)}
+CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL=${numVal('CHAT_RELAY_EVENT_IP_LIMITER_INTERVAL', 1)}
+CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${numVal('CHAT_RELAY_EVENT_IP_LIMITER_MAX_TOKENS', 100)}
+CHAT_RELAY_ALLOW_EMPTY_FILTERS=${boolVal('CHAT_RELAY_ALLOW_EMPTY_FILTERS', false)}
+CHAT_RELAY_ALLOW_COMPLEX_FILTERS=${boolVal('CHAT_RELAY_ALLOW_COMPLEX_FILTERS', false)}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 3)}
+CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('CHAT_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Outbox Relay Settings
 OUTBOX_RELAY_NAME="${formData.get('OUTBOX_RELAY_NAME')}"
@@ -585,14 +598,14 @@ OUTBOX_RELAY_DESCRIPTION="${formData.get('OUTBOX_RELAY_DESCRIPTION')}"
 OUTBOX_RELAY_ICON="${formData.get('OUTBOX_RELAY_ICON') ? formData.get('OUTBOX_RELAY_ICON') : ''}"
 
 ## Outbox Relay Rate Limiters
-OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
-OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '60'}
-OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '100'}
-OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
-OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
-OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${numVal('OUTBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL', 10)}
+OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${numVal('OUTBOX_RELAY_EVENT_IP_LIMITER_INTERVAL', 60)}
+OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${numVal('OUTBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS', 100)}
+OUTBOX_RELAY_ALLOW_EMPTY_FILTERS=${boolVal('OUTBOX_RELAY_ALLOW_EMPTY_FILTERS', false)}
+OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS=${boolVal('OUTBOX_RELAY_ALLOW_COMPLEX_FILTERS', false)}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 1)}
+OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('OUTBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Inbox Relay Settings
 INBOX_RELAY_NAME="${formData.get('INBOX_RELAY_NAME')}"
@@ -602,20 +615,20 @@ INBOX_RELAY_ICON="${formData.get('INBOX_RELAY_ICON') ? formData.get('INBOX_RELAY
 INBOX_PULL_INTERVAL_SECONDS=${formData.get('INBOX_PULL_INTERVAL_SECONDS')}
 
 ## Inbox Relay Rate Limiters
-INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL') || '10'}
-INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL') || '1'}
-INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS') || '20'}
-INBOX_RELAY_ALLOW_EMPTY_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_EMPTY_FILTERS') || 'false'}
-INBOX_RELAY_ALLOW_COMPLEX_FILTERS=${getExistingVal('INBOX_RELAY_ALLOW_COMPLEX_FILTERS') || 'false'}
-INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL') || '3'}
-INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL') || '1'}
-INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${getExistingVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS') || '9'}
+INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL=${numVal('INBOX_RELAY_EVENT_IP_LIMITER_TOKENS_PER_INTERVAL', 10)}
+INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL=${numVal('INBOX_RELAY_EVENT_IP_LIMITER_INTERVAL', 1)}
+INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS=${numVal('INBOX_RELAY_EVENT_IP_LIMITER_MAX_TOKENS', 20)}
+INBOX_RELAY_ALLOW_EMPTY_FILTERS=${boolVal('INBOX_RELAY_ALLOW_EMPTY_FILTERS', false)}
+INBOX_RELAY_ALLOW_COMPLEX_FILTERS=${boolVal('INBOX_RELAY_ALLOW_COMPLEX_FILTERS', false)}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL=${numVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_TOKENS_PER_INTERVAL', 3)}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL=${numVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_INTERVAL', 1)}
+INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS=${numVal('INBOX_RELAY_CONNECTION_RATE_LIMITER_MAX_TOKENS', 9)}
 
 ## Import Settings
 IMPORT_START_DATE="${formData.get('IMPORT_START_DATE')}"
-IMPORT_QUERY_INTERVAL_SECONDS=${getExistingVal('IMPORT_QUERY_INTERVAL_SECONDS') || '600'}
-IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS') || '60'}
-IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=${getExistingVal('IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS') || '120'}
+IMPORT_QUERY_INTERVAL_SECONDS=${numVal('IMPORT_QUERY_INTERVAL_SECONDS', 600)}
+IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS=${numVal('IMPORT_OWNER_NOTES_FETCH_TIMEOUT_SECONDS', 60)}
+IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS=${numVal('IMPORT_TAGGED_NOTES_FETCH_TIMEOUT_SECONDS', 120)}
 IMPORT_SEED_RELAYS_FILE="${getExistingVal('IMPORT_SEED_RELAYS_FILE') || '/haven-config/relays_import.json'}"
 
 ## Backup Settings
@@ -640,7 +653,7 @@ S3_BUCKET_NAME="${formData.get('S3_BUCKET_NAME') || ''}"
 BLASTR_RELAYS_FILE="${getExistingVal('BLASTR_RELAYS_FILE') || '/haven-config/relays_blastr.json'}"
 
 ## WOT Settings
-WOT_FETCH_TIMEOUT_SECONDS=${getExistingVal('WOT_FETCH_TIMEOUT_SECONDS') || '60'}
+WOT_FETCH_TIMEOUT_SECONDS=${numVal('WOT_FETCH_TIMEOUT_SECONDS', 60)}
 
 ## Logging
 HAVEN_LOG_LEVEL="${getExistingVal('HAVEN_LOG_LEVEL') || 'INFO'}"
@@ -802,13 +815,51 @@ async function checkStatus() {
 
         const indicator = document.getElementById('status-indicator');
         const statusText = document.getElementById('status-text');
+        const importButton = document.getElementById('run-import-btn');
+        const isImportActive = ['running', 'cancelling', 'pending'].includes(importRunState);
 
-        if (data.success && data.running) {
-            indicator.className = 'status-badge running';
-            statusText.textContent = 'HAVEN Running';
+        if (!indicator || !statusText) {
+            return;
+        }
+
+        if (data.success) {
+            const status = data.status || 'unknown';
+            const health = data.health || 'unknown';
+            const isRunning = status === 'running';
+            const isHealthy = health === 'healthy';
+
+            if (isRunning && isHealthy) {
+                indicator.className = 'status-badge running';
+                statusText.textContent = 'HAVEN Running';
+                if (importButton && !isImportActive && importButton.dataset.originalText) {
+                    importButton.innerHTML = importButton.dataset.originalText;
+                }
+            } else if (isRunning) {
+                indicator.className = 'status-badge starting';
+                statusText.textContent = 'HAVEN Starting...';
+            } else {
+                indicator.className = 'status-badge stopped';
+                statusText.textContent = 'HAVEN Stopped';
+            }
+
+            if (importButton && !isImportActive) {
+                const disabled = !(isRunning && isHealthy);
+                importButton.disabled = disabled;
+                if (disabled) {
+                    importButton.dataset.originalText = importButton.dataset.originalText || importButton.innerHTML;
+                    importButton.innerHTML = 'Relay must be running';
+                } else if (importButton.dataset.originalText) {
+                    importButton.innerHTML = importButton.dataset.originalText;
+                }
+            }
         } else {
             indicator.className = 'status-badge stopped';
             statusText.textContent = 'HAVEN Stopped';
+            if (importButton && !isImportActive) {
+                importButton.disabled = true;
+                importButton.dataset.originalText = importButton.dataset.originalText || importButton.innerHTML;
+                importButton.innerHTML = 'Relay must be running';
+            }
         }
     } catch (error) {
         console.error('Status check failed:', error);
@@ -938,6 +989,46 @@ function normalizeRelayUrl(url) {
     url = url.replace(/^(wss?:\/\/)/i, '');
     url = url.replace(/\/+$/, '');
     return url;
+}
+
+function normalizeRelayHost(value) {
+    if (!value) return '';
+    let host = value.trim();
+    host = host.replace(/^wss?:\/\//i, '');
+    host = host.replace(/^https?:\/\//i, '');
+    host = host.replace(/\/.*$/, '');
+    return host;
+}
+
+function validateRelayHost(host) {
+    const normalized = normalizeRelayHost(host);
+    const hostPattern = /^[a-z0-9.-]+(?::\d{1,5})?$/i;
+    if (!normalized || !hostPattern.test(normalized)) {
+        throw new Error('Relay URL must be a hostname (optionally with port), e.g. relay.example.com or localhost:3355');
+    }
+    if (normalized.includes('localhost') && normalized.includes('127.0.0.1')) {
+        throw new Error('Relay URL should not mix localhost with other hosts');
+    }
+    return normalized;
+}
+
+function normalizeEnvBoolean(value, defaultValue) {
+    const defaultString = defaultValue ? 'true' : 'false';
+    if (value === undefined || value === null || value === '') return defaultString;
+    const normalized = value.toString().replace(/^"(.*)"$/, '$1').trim().toLowerCase();
+    if (['true', '1', 'yes'].includes(normalized)) return 'true';
+    if (['false', '0', 'no'].includes(normalized)) return 'false';
+    return defaultString;
+}
+
+function normalizeEnvNumber(value, defaultValue) {
+    if (value === undefined || value === null || value === '') return String(defaultValue);
+    const cleaned = value.toString().replace(/^"(.*)"$/, '$1').trim();
+    const parsed = Number(cleaned);
+    if (Number.isFinite(parsed)) {
+        return Number.isInteger(parsed) ? String(parsed) : cleaned;
+    }
+    return String(defaultValue);
 }
 
 function addRelay(type) {
@@ -1076,6 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==================== Import Notes Functionality ====================
 
 let importEventSource = null;
+let importRunState = 'idle';
 
 // Load import info when tab is opened
 function loadImportInfo() {
@@ -1097,6 +1189,13 @@ function loadImportInfo() {
 
 function updateImportStatus(status) {
     const statusElement = document.getElementById('import-status');
+    if (!statusElement) return;
+
+    const runButton = document.getElementById('run-import-btn');
+    const cancelButton = document.getElementById('cancel-import-btn');
+
+    importRunState = status;
+
     statusElement.className = '';
 
     switch (status) {
@@ -1108,6 +1207,10 @@ function updateImportStatus(status) {
             statusElement.className = 'status-running';
             statusElement.textContent = 'Running...';
             break;
+        case 'cancelling':
+            statusElement.className = 'status-cancelling';
+            statusElement.textContent = 'Cancelling...';
+            break;
         case 'completed':
             statusElement.className = 'status-completed';
             statusElement.textContent = 'Completed';
@@ -1116,11 +1219,48 @@ function updateImportStatus(status) {
             statusElement.className = 'status-failed';
             statusElement.textContent = 'Failed';
             break;
+        case 'cancelled':
+            statusElement.className = 'status-cancelled';
+            statusElement.textContent = 'Cancelled';
+            break;
+        default:
+            statusElement.className = 'status-idle';
+            statusElement.textContent = status || 'Idle';
+            break;
+    }
+
+    if (runButton && cancelButton) {
+        if (status === 'running') {
+            runButton.disabled = true;
+            runButton.innerHTML = 'Importing...';
+            cancelButton.style.display = 'inline-flex';
+            cancelButton.disabled = false;
+            cancelButton.innerHTML = 'Cancel Import';
+            runButton.dataset.state = 'running';
+            cancelButton.dataset.state = 'available';
+        } else if (status === 'cancelling') {
+            runButton.disabled = true;
+            runButton.innerHTML = 'Cancelling...';
+            cancelButton.style.display = 'inline-flex';
+            cancelButton.disabled = true;
+            cancelButton.innerHTML = 'Cancelling...';
+            runButton.dataset.state = 'cancelling';
+            cancelButton.dataset.state = 'cancelling';
+        } else {
+            runButton.disabled = false;
+            runButton.innerHTML = 'Import Notes';
+            cancelButton.disabled = true;
+            cancelButton.style.display = 'none';
+            cancelButton.innerHTML = 'Cancel Import';
+            delete runButton.dataset.state;
+            delete cancelButton.dataset.state;
+        }
     }
 }
 
 function runImport() {
-    const button = document.getElementById('run-import-btn');
+    const runButton = document.getElementById('run-import-btn');
+    const cancelButton = document.getElementById('cancel-import-btn');
     const logContainer = document.getElementById('import-log-container');
     const logOutput = document.getElementById('import-log');
 
@@ -1129,9 +1269,19 @@ function runImport() {
         return;
     }
 
-    // Disable button
-    button.disabled = true;
-    button.innerHTML = '⏳ Importing...';
+    // Disable buttons while request is sent
+    runButton.disabled = true;
+    runButton.dataset.originalText = runButton.dataset.originalText || runButton.innerHTML;
+    runButton.innerHTML = 'Importing...';
+    runButton.dataset.state = 'pending';
+    importRunState = 'pending';
+
+    if (cancelButton) {
+        cancelButton.style.display = 'inline-flex';
+        cancelButton.disabled = true;
+        cancelButton.innerHTML = 'Preparing...';
+        cancelButton.dataset.state = 'pending';
+    }
 
     // Clear previous logs
     logOutput.innerHTML = '';
@@ -1145,6 +1295,10 @@ function runImport() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            if (cancelButton) {
+                cancelButton.disabled = false;
+                cancelButton.innerHTML = 'Cancel Import';
+            }
             updateImportStatus('running');
             startImportLogStream();
         } else {
@@ -1154,10 +1308,63 @@ function runImport() {
     .catch(error => {
         console.error('Import error:', error);
         showNotification(`Failed to start import: ${error.message}`, 'error');
-        button.disabled = false;
-        button.innerHTML = '📥 Import Notes';
-        updateImportStatus('failed');
+        runButton.disabled = false;
+        runButton.innerHTML = 'Import Notes';
+        delete runButton.dataset.state;
+        importRunState = 'idle';
+        if (cancelButton) {
+            cancelButton.disabled = true;
+            cancelButton.style.display = 'none';
+            cancelButton.innerHTML = 'Cancel Import';
+            delete cancelButton.dataset.state;
+        }
+        updateImportStatus('idle');
     });
+}
+
+function cancelImport() {
+    const cancelButton = document.getElementById('cancel-import-btn');
+    const runButton = document.getElementById('run-import-btn');
+
+    if (!cancelButton || cancelButton.disabled) {
+        return;
+    }
+
+    cancelButton.disabled = true;
+    cancelButton.innerHTML = 'Cancelling...';
+    cancelButton.dataset.state = 'cancelling';
+    if (runButton) {
+        runButton.innerHTML = 'Cancelling...';
+    }
+    updateImportStatus('cancelling');
+
+    fetch('/api/import/cancel', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Import cancellation requested...', 'info');
+            } else {
+                throw new Error(data.error || 'Failed to cancel import');
+            }
+        })
+        .catch(error => {
+            console.error('Cancel import error:', error);
+            showNotification(`Failed to cancel import: ${error.message}`, 'error');
+            if (cancelButton) {
+                cancelButton.disabled = false;
+                cancelButton.innerHTML = 'Cancel Import';
+                cancelButton.dataset.state = 'available';
+            }
+            if (runButton) {
+                runButton.innerHTML = 'Importing...';
+                runButton.dataset.state = 'running';
+            }
+            importRunState = 'running';
+            updateImportStatus('running');
+        });
 }
 
 function startImportLogStream() {
@@ -1169,7 +1376,8 @@ function startImportLogStream() {
     // Create new EventSource for streaming logs
     importEventSource = new EventSource('/api/import/stream');
     const logOutput = document.getElementById('import-log');
-    const button = document.getElementById('run-import-btn');
+    const runButton = document.getElementById('run-import-btn');
+    const cancelButton = document.getElementById('cancel-import-btn');
 
     importEventSource.onmessage = function(event) {
         const data = JSON.parse(event.data);
@@ -1177,15 +1385,25 @@ function startImportLogStream() {
         if (data.type === 'status') {
             updateImportStatus(data.status);
 
-            if (data.status === 'completed' || data.status === 'failed') {
+            if (['completed', 'failed', 'cancelled'].includes(data.status)) {
                 importEventSource.close();
-                button.disabled = false;
-                button.innerHTML = '📥 Import Notes';
+                importEventSource = null;
+                runButton.disabled = false;
+                runButton.innerHTML = 'Import Notes';
+                delete runButton.dataset.state;
+                if (cancelButton) {
+                    cancelButton.disabled = true;
+                    cancelButton.style.display = 'none';
+                    cancelButton.innerHTML = 'Cancel Import';
+                    delete cancelButton.dataset.state;
+                }
 
                 if (data.status === 'completed') {
                     showNotification('Import completed successfully!', 'success');
-                } else {
+                } else if (data.status === 'failed') {
                     showNotification('Import failed. Check logs for details.', 'error');
+                } else if (data.status === 'cancelled') {
+                    showNotification('Import cancelled.', 'info');
                 }
             }
         } else {
@@ -1212,8 +1430,19 @@ function startImportLogStream() {
     importEventSource.onerror = function(error) {
         console.error('EventSource error:', error);
         importEventSource.close();
-        button.disabled = false;
-        button.innerHTML = '📥 Import Notes';
+        importEventSource = null;
+        if (runButton) {
+            runButton.disabled = false;
+            runButton.innerHTML = 'Import Notes';
+            delete runButton.dataset.state;
+        }
+        if (cancelButton) {
+            cancelButton.disabled = true;
+            cancelButton.style.display = 'none';
+            cancelButton.innerHTML = 'Cancel Import';
+            delete cancelButton.dataset.state;
+        }
+        importRunState = 'idle';
 
         const logLine = document.createElement('div');
         logLine.className = 'log-line error';

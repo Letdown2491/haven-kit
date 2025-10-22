@@ -11,7 +11,9 @@
         <header>
             <div class="header-content">
                 <div class="header-title">
-                    <div class="logo">⚡</div>
+                    <div class="logo">
+                        <img src="/static/haven-icon.svg" alt="Haven Kit logo" />
+                    </div>
                     <div>
                         <h1>HAVEN Kit</h1>
                         <div class="subtitle">Simple configuration tool to set up a HAVEN Nostr relay <a href="https://github.com/Letdown2491/haven-kit" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none;">(View project)</a></div>
@@ -24,11 +26,11 @@
             </div>
 
             <div class="tabs">
-                <button class="tab-button active" data-tab="instructions">📖 Get Started</button>
-                <button class="tab-button" data-tab="wizard">⚙️ Configuration</button>
-                <button class="tab-button" data-tab="blastr">📡 Blastr Relays</button>
-                <button class="tab-button" data-tab="import-relays">📋 Import Relays</button>
-                <button class="tab-button" data-tab="import-notes">📥 Import Notes</button>
+                <button class="tab-button active" data-tab="instructions">Get Started</button>
+                <button class="tab-button" data-tab="wizard">Configuration</button>
+                <button class="tab-button" data-tab="blastr">Blastr Relays</button>
+                <button class="tab-button" data-tab="import-relays">Import Relays</button>
+                <button class="tab-button" data-tab="import-notes">Import Notes</button>
             </div>
         </header>
 
@@ -54,7 +56,7 @@
                                 <p>Set your Nostr identity (npub), relay URL, and configure the four relay types. This establishes ownership and defines how HAVEN handles different types of content.</p>
                             </div>
                             <div class="step-item-action">
-                                <button class="btn btn-primary btn-sm" onclick="switchToTab('wizard')">⚙️ Start Configuration</button>
+                        <button class="btn btn-primary btn-sm primary-action" onclick="switchToTab('wizard')">Start Configuration</button>
                             </div>
                         </div>
 
@@ -68,7 +70,7 @@
                                 <p>Choose additional relays to automatically broadcast your public posts to. Increases reach beyond your personal relay. HAVEN has sensible defaults so this step is optional and you can move to step 3.</p>
                             </div>
                             <div class="step-item-action">
-                                <button class="btn btn-secondary btn-sm" onclick="switchToTab('blastr')">📡 Edit Blastr Relays</button>
+                        <button class="btn btn-secondary btn-sm primary-action" onclick="switchToTab('blastr')">Edit Blastr Relays</button>
                             </div>
                         </div>
 
@@ -82,7 +84,7 @@
                                 <p>Specify source relays to pull your existing notes from. Useful for consolidating your Nostr history into your personal relay for backup or migration. HAVEN has sensible defaults here as well, so if you want to use the defaults, you can move to step 4.</p>
                             </div>
                             <div class="step-item-action">
-                                <button class="btn btn-secondary btn-sm" onclick="switchToTab('import-relays')">📋 Edit Import Relays</button>
+                        <button class="btn btn-secondary btn-sm primary-action" onclick="switchToTab('import-relays')">Edit Import Relays</button>
                             </div>
                         </div>
 
@@ -96,7 +98,7 @@
                                 <p>If you want to import your historical notes from the configured import relays, complete this step. HAVEN temporarily stops during import and depending on the import date chosen in step 1, it may take a few minutes to import your notes.</p>
                             </div>
                             <div class="step-item-action">
-                                <button class="btn btn-secondary btn-sm" onclick="switchToTab('import-notes')">📥 Import Notes</button>
+                        <button class="btn btn-secondary btn-sm primary-action" onclick="switchToTab('import-notes')">Import Notes</button>
                             </div>
                         </div>
                     </div>
@@ -170,7 +172,7 @@
                 <form id="config-form">
                     <!-- Step 0: Configuration Mode Selection -->
                     <div class="wizard-step active" data-step="0">
-                        <h2 style="margin-bottom: 8px;">🚀 Choose Configuration Mode</h2>
+                        <h2 style="margin-bottom: 8px;">Choose Configuration Mode</h2>
                         <p class="help-text" style="margin-bottom: 30px;">Select how you'd like to configure HAVEN.</p>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -520,11 +522,11 @@
 
                 <div class="add-relay">
                     <input type="text" id="blastr-input" placeholder="wss://relay.example.com or relay.example.com" autocomplete="off"/>
-                    <button class="btn btn-secondary" onclick="addRelay('blastr')">➕ Add Relay</button>
+                    <button class="btn btn-secondary" onclick="addRelay('blastr')">Add Relay</button>
                 </div>
 
                 <div style="display: flex; justify-content: flex-end;">
-                    <button class="btn btn-primary" onclick="saveRelayConfig('blastr')" style="text-align: center;">💾 Save Blastr Relay Configuration</button>
+                    <button class="btn btn-primary" onclick="saveRelayConfig('blastr')">Save Blastr Relay Configuration</button>
                 </div>
             </div>
         </div>
@@ -543,11 +545,11 @@
 
                 <div class="add-relay">
                     <input type="text" id="import-input" placeholder="wss://relay.example.com or relay.example.com" autocomplete="off"/>
-                    <button class="btn btn-secondary" onclick="addRelay('import')">➕ Add Relay</button>
+                    <button class="btn btn-secondary" onclick="addRelay('import')">Add Relay</button>
                 </div>
 
                 <div style="display: flex; justify-content: flex-end;">
-                    <button class="btn btn-primary" onclick="saveRelayConfig('import')" style="text-align: center;">💾 Save Import Relay Configuration</button>
+                    <button class="btn btn-primary" onclick="saveRelayConfig('import')">Save Import Relay Configuration</button>
                 </div>
             </div>
         </div>
@@ -563,7 +565,7 @@
                 </div>
 
                 <div class="import-info-compact">
-                    <span id="import-relay-count">Loading...</span> relay(s) •
+                    <span id="import-relay-count">Loading...</span> •
                     Start date: <span id="import-start-date">Loading...</span> •
                     Status: <span id="import-status" class="status-idle">Idle</span>
                 </div>
@@ -572,10 +574,9 @@
                     <p class="help-text">
                         ⚠️ Warning: HAVEN will be stopped during the import process. This may take several minutes depending on the number of notes.
                     </p>
-                    <div style="display: flex; justify-content: flex-end;">
-                        <button id="run-import-btn" class="btn btn-primary" onclick="runImport()" style="text-align: center;">
-                            📥 Import Notes
-                        </button>
+                    <div class="import-action-buttons">
+                        <button id="cancel-import-btn" class="btn btn-secondary" onclick="cancelImport()" style="display: none;">Cancel Import</button>
+                        <button id="run-import-btn" class="btn btn-primary" onclick="runImport()">Import Notes</button>
                     </div>
                 </div>
 
@@ -599,12 +600,12 @@
 
                 <div class="form-group">
                     <textarea id="env-editor" rows="35" placeholder="Loading configuration..." style="resize: vertical;"></textarea>
-                    <span class="form-hint">💡 Tip: Use Ctrl/Cmd + F to search for specific settings</span>
+                    <span class="form-hint">Tip: Use Ctrl/Cmd + F to search for specific settings</span>
                 </div>
 
                 <div style="display: flex; gap: 12px;">
                     <button class="btn btn-warning" onclick="saveEnvConfigAdvanced()" style="flex: 1;">
-                        💾 Save Configuration
+                        Save Configuration
                     </button>
                     <button class="btn btn-secondary" onclick="showWizardConfig()" style="flex: 0 0 auto;">
                         ← Back to Configuration
@@ -617,7 +618,7 @@
         <div class="restart-section">
             <div class="restart-wrapper">
                 <div class="restart-content">
-                    <h3>🔄 Restart HAVEN Relay</h3>
+                    <h3>Restart HAVEN Relay</h3>
                     <p class="help-text">Restart to apply configuration changes</p>
                 </div>
                 <div class="restart-action">

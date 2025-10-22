@@ -16,8 +16,6 @@ services:
       - ${APP_DATA_DIR}/db:/haven/db:z
     environment:
       - TZ=UTC
-    env_file:
-      - ${APP_DATA_DIR}/config/.env
     networks:
       - haven_network
     healthcheck:

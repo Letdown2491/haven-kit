@@ -70,14 +70,17 @@ header {
 }
 
 .logo {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    border-radius: 10px;
+    width: 64px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+}
+
+.logo img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
 }
 
 h1 {
@@ -90,7 +93,7 @@ h1 {
 .subtitle {
     font-size: 14px;
     color: var(--text-muted);
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .status-badge {
@@ -134,6 +137,16 @@ h1 {
     background: var(--error);
 }
 
+.status-badge.starting {
+    background: rgba(245, 158, 11, 0.12);
+    color: #FCD34D;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.status-badge.starting .dot {
+    background: var(--warning);
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
@@ -152,7 +165,7 @@ h1 {
 
 .tab-button {
     flex: 1;
-    min-width: 140px;
+    min-width: 180px;
     padding: 10px 16px;
     background: transparent;
     border: none;
@@ -174,6 +187,10 @@ h1 {
     background: var(--primary);
     color: white;
     box-shadow: var(--shadow);
+}
+
+.primary-action {
+    min-width: 220px;
 }
 
 /* Tab Content */
@@ -965,12 +982,21 @@ code {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.status-cancelling {
+    color: var(--warning);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 .status-completed {
     color: var(--success);
 }
 
 .status-failed {
     color: var(--error);
+}
+
+.status-cancelled {
+    color: var(--text-muted);
 }
 
 .import-actions {
@@ -985,6 +1011,13 @@ code {
     border-radius: 8px;
     color: var(--warning);
     font-size: 14px;
+}
+
+.import-action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    width: 100%;
 }
 
 .log-container {

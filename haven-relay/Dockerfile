@@ -31,11 +31,16 @@ COPY --from=builder /build/haven /haven/haven
 # Copy templates (if they exist in the repo)
 COPY --from=builder /build/templates /haven/templates
 
+# Copy entrypoint script that syncs configuration before startup
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Create directories for data
 RUN mkdir -p /haven/blossom /haven/db
 
 # Expose the relay port
 EXPOSE 3355
 
-# Run haven
+# Run haven via wrapper entrypoint so configuration is refreshed each time
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/haven/haven"]
