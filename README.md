@@ -1,6 +1,10 @@
 # HAVEN Kit
 
+[![Community Store](https://img.shields.io/badge/Umbrel-Community%20Store-purple?logo=umbrella)](https://github.com/Letdown2491/haven-kit-umbrel)
+
 Simple configuration tool to set up a HAVEN Nostr relay with Docker or Podman with just a few clicks.
+
+**Quick Start:** [Install on Umbrel](#installation-on-umbrel) | [Using Docker](#using-docker) | [Using Podman](#using-podman)
 
 ## What is Haven?
 
