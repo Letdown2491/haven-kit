@@ -47,6 +47,7 @@ services:
       - CONTAINER_RUNTIME=${CONTAINER_RUNTIME:-}
       - DATA_DIR=${PWD}/data
       - APP_DATA_DIR=${APP_DATA_DIR}
+      - RELAY_CONTAINER_NAME=haven_relay_1
     user: "${UID:-0}:${GID:-0}"
     security_opt:
       - label=disable

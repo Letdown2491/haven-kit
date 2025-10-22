@@ -35,6 +35,23 @@ def detect_container_runtime():
 CONTAINER_RUNTIME = detect_container_runtime()
 print(f"Detected container runtime: {CONTAINER_RUNTIME}", flush=True)
 
+# Get container name with project prefix
+def get_relay_container_name():
+    """Get the full relay container name with project prefix"""
+    # Check for explicit container name from environment (set by Umbrel or docker-compose)
+    env_container_name = os.getenv('RELAY_CONTAINER_NAME', '')
+    if env_container_name:
+        return env_container_name
+
+    # Fall back to compose project name logic for local development
+    project_name = os.getenv('COMPOSE_PROJECT_NAME', '')
+    if project_name:
+        return f"{project_name}_haven_relay_1"
+    return 'haven_relay_1'
+
+RELAY_CONTAINER_NAME = get_relay_container_name()
+print(f"Relay container name: {RELAY_CONTAINER_NAME}", flush=True)
+
 # Default configurations
 DEFAULT_ENV = """# Owner Configuration (REQUIRED)
 # Your Nostr public key (npub format)
@@ -166,7 +183,7 @@ def restart_haven():
     try:
         # Use detected container runtime
         result = subprocess.run(
-            [CONTAINER_RUNTIME, 'restart', 'haven_relay_1'],
+            [CONTAINER_RUNTIME, 'restart', RELAY_CONTAINER_NAME],
             capture_output=True,
             text=True,
             timeout=30
@@ -188,7 +205,7 @@ def get_status():
     try:
         # Use detected container runtime
         result = subprocess.run(
-            [CONTAINER_RUNTIME, 'inspect', '-f', '{{.State.Status}}', 'haven_relay_1'],
+            [CONTAINER_RUNTIME, 'inspect', '-f', '{{.State.Status}}', RELAY_CONTAINER_NAME],
             capture_output=True,
             text=True,
             timeout=10
@@ -254,7 +271,7 @@ def run_import_process():
         # Step 1: Stop the relay
         import_log_queue.put({'type': 'info', 'message': 'Stopping HAVEN relay...'})
         stop_result = subprocess.run(
-            [runtime_cmd, 'stop', 'haven_relay_1'],
+            [runtime_cmd, 'stop', RELAY_CONTAINER_NAME],
             capture_output=True,
             text=True,
             timeout=30
@@ -342,7 +359,7 @@ def run_import_process():
         # Step 3: Restart the relay
         import_log_queue.put({'type': 'info', 'message': 'Starting HAVEN relay...'})
         start_result = subprocess.run(
-            [runtime_cmd, 'start', 'haven_relay_1'],
+            [runtime_cmd, 'start', RELAY_CONTAINER_NAME],
             capture_output=True,
             text=True,
             timeout=30
@@ -363,7 +380,7 @@ def run_import_process():
 
         # Try to restart relay
         try:
-            subprocess.run([CONTAINER_RUNTIME, 'start', 'haven_relay_1'], timeout=30)
+            subprocess.run([CONTAINER_RUNTIME, 'start', RELAY_CONTAINER_NAME], timeout=30)
         except:
             pass
 
@@ -374,7 +391,7 @@ def run_import_process():
 
         # Try to restart relay
         try:
-            subprocess.run([CONTAINER_RUNTIME, 'start', 'haven_relay_1'], timeout=30)
+            subprocess.run([CONTAINER_RUNTIME, 'start', RELAY_CONTAINER_NAME], timeout=30)
             import_log_queue.put({'type': 'warning', 'message': 'HAVEN relay restarted after error'})
         except:
             import_log_queue.put({'type': 'error', 'message': 'Failed to restart HAVEN relay'})
