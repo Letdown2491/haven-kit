@@ -1,5 +1,4 @@
 # Data directories
-data/
 *.db
 *.log
 
@@ -9,7 +8,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 venv/
 ENV/
 *.egg-info/
@@ -24,13 +22,3 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-
-# Environment (but keep the root .env for docker-compose)
-.env.local
-.env.production
-
-# Node (if you ever need it)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
