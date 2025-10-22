@@ -269,6 +269,35 @@ ARG HAVEN_VERSION=v1.2.3  # Change to desired version/tag
 - Check firewall settings on your Umbrel
 - Review Haven logs for authentication/configuration issues
 
+## Development & Releases
+
+### Creating a New Release
+
+This project uses GitHub Actions to automatically build and push Docker images when a new release is created.
+
+**To create a release:**
+
+1. Update version numbers if needed (in `umbrel-app.yml`, etc.)
+2. Commit your changes
+3. Create a new tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+4. Create a GitHub release from the tag
+5. GitHub Actions will automatically:
+   - Build both `haven-relay` and `haven-config-ui` images
+   - Push to Docker Hub with tags `latest` and `v1.0.0`
+   - Build for multiple platforms (amd64, arm64)
+
+**Manual trigger:**
+You can also manually trigger the workflow from the GitHub Actions tab and specify a tag.
+
+**Prerequisites:**
+Set up these GitHub repository secrets:
+- `DOCKER_USERNAME` - Your Docker Hub username
+- `DOCKER_PASSWORD` - Your Docker Hub password or access token
+
 ## Support
 
 - HAVEN Kit: https://github.com/Letdown2491/haven-kit
