@@ -219,7 +219,7 @@ h1 {
     min-height: 400px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Ensure header and action buttons don't shrink */
@@ -386,6 +386,7 @@ input[type="checkbox"] {
     overflow-x: hidden;
     min-height: 0;
     padding-right: 8px;
+    padding-bottom: 1rem;
 }
 
 /* Custom scrollbar for relay lists */
@@ -784,6 +785,8 @@ input[type="checkbox"] {
     overflow-x: hidden;
     flex: 1;
     padding-right: 8px;
+    padding-bottom: 1rem;
+    min-height: 0;
 }
 
 .wizard-step.active {
@@ -814,9 +817,14 @@ input[type="checkbox"] {
     justify-content: space-between;
     gap: 1rem;
     margin-top: auto;
-    padding-top: 2rem;
+    padding-top: 1.5rem;
+    padding-bottom: 0.5rem;
     border-top: 2px solid var(--border-color);
     flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-secondary);
+    z-index: 10;
 }
 
 #next-btn {
@@ -830,9 +838,15 @@ input[type="checkbox"] {
 }
 
 .form-actions {
-    margin-top: 2rem;
-    padding-top: 2rem;
+    margin-top: auto;
+    padding-top: 1.5rem;
+    padding-bottom: 0.5rem;
     border-top: 2px solid var(--border-color);
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-secondary);
+    z-index: 10;
 }
 
 /* Collapsible Sections */
@@ -1133,6 +1147,8 @@ code {
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 8px;
+    padding-bottom: 1rem;
+    min-height: 0;
 }
 
 /* Custom scrollbar for instructions */
@@ -1178,7 +1194,7 @@ code {
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    width: 200px;
+    min-width: 200px;
     justify-content: flex-end;
 }
 
@@ -1268,5 +1284,24 @@ code {
 @media (max-width: 768px) {
     .wizard-step[data-step="0"] > div[style*="grid-template-columns"] {
         grid-template-columns: 1fr !important;
+    }
+}
+
+/* Safari-specific fixes for viewport height calculations */
+@supports (-webkit-hyphens:none) {
+    /* Target Safari - use smaller offset since Safari calculates vh differently */
+    .section {
+        height: calc(100vh - 280px);
+    }
+
+    .logs-section {
+        height: calc(100vh - 200px);
+    }
+
+    /* Ensure action buttons have extra breathing room in Safari */
+    .wizard-navigation,
+    .form-actions {
+        padding-bottom: 1rem;
+        margin-bottom: 0.5rem;
     }
 }
