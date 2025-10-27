@@ -819,7 +819,6 @@ input[type="checkbox"] {
     margin-top: auto;
     padding-top: 1.5rem;
     padding-bottom: 0.5rem;
-    border-top: 2px solid var(--border-color);
     flex-shrink: 0;
     position: sticky;
     bottom: 0;
@@ -841,7 +840,6 @@ input[type="checkbox"] {
     margin-top: auto;
     padding-top: 1.5rem;
     padding-bottom: 0.5rem;
-    border-top: 2px solid var(--border-color);
     flex-shrink: 0;
     position: sticky;
     bottom: 0;
@@ -1223,6 +1221,18 @@ code {
     color: white;
 }
 
+.url-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
 .step-header strong {
     color: var(--text-primary);
     font-size: 15px;
@@ -1285,6 +1295,27 @@ code {
     .wizard-step[data-step="0"] > div[style*="grid-template-columns"] {
         grid-template-columns: 1fr !important;
     }
+}
+
+/* Relay URL click-to-copy styling */
+a[title="Click to copy"] {
+    transition: color 0.2s ease;
+}
+
+a[title="Click to copy"]:hover {
+    color: var(--primary-light) !important;
+}
+
+/* Copy icon link styling */
+a[title="Copy to clipboard"] {
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+a[title="Copy to clipboard"]:hover {
+    opacity: 1;
+    color: var(--primary-light) !important;
+    transform: scale(1.1);
 }
 
 /* Safari-specific fixes for viewport height calculations */

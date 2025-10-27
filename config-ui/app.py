@@ -683,6 +683,39 @@ def get_version():
         })
 
 
+@app.route('/api/tor', methods=['GET'])
+def get_tor_info():
+    """Get Tor .onion address information (Umbrel only)"""
+    try:
+        # Check for Umbrel's Tor hidden service environment variable
+        onion_hostname = os.getenv('APP_HIDDEN_SERVICE')
+
+        if onion_hostname:
+            # Running on Umbrel with Tor enabled
+            # Clean up the hostname (remove trailing newlines/spaces)
+            onion_hostname = onion_hostname.strip()
+
+            return jsonify({
+                'success': True,
+                'available': True,
+                'address': f"ws://{onion_hostname}"
+            })
+        else:
+            # Not running on Umbrel or Tor not configured
+            return jsonify({
+                'success': True,
+                'available': False,
+                'address': None
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'available': False,
+            'address': None,
+            'error': str(e)
+        })
+
+
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
     """Fetch logs from the haven_relay container (for download)"""

@@ -40,7 +40,7 @@
                 <div class="section-header">
                     <h2>Quick Start</h2>
                     <p class="help-text">
-                        HAVEN (High Availability Vault for Events on Nostr) is the most sovereign personal relay for the Nostr protocol, for storing and backing up sensitive notes like eCash, private chats and drafts. It is a relay that is not so dumb, with features like web of trust, inbox relay, cloud backups, blastr and the ability to import old notes. It even includes it's own blossom media server!
+                        Configure your own HAVEN relay for the Nostr protocol in just a few easy steps.
                     </p>
                 </div>
 
@@ -103,8 +103,43 @@
                         </div>
                     </div>
 
-                    <div class="quick-tips">
-                        <strong>💡 Tips:</strong> Save after each change • Restart to apply changes • npub required
+                    <!-- Separator -->
+                    <div id="relay-separator" style="display: none; margin: 12px 0; border-top: 1px solid var(--border-color);"></div>
+
+                    <!-- Relay Connection Info -->
+                    <div id="relay-connection-info" style="display: none; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="url-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                </svg>
+                            </span>
+                            <span style="color: var(--text-secondary); font-size: 14px; font-weight: 600;">Relay URL:</span>
+                            <a href="javascript:void(0)" id="relay-url-display" onclick="copyRelayUrlText('relay-url-display')" style="color: var(--text-primary); font-size: 14px; text-decoration: none; cursor: pointer;" title="Click to copy">-</a>
+                            <a href="javascript:void(0)" onclick="copyRelayUrlText('relay-url-display')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; padding: 4px;" title="Copy to clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </a>
+                        </div>
+                        <div id="tor-url-display-section" style="display: none; align-items: center; gap: 8px;">
+                            <span class="url-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                </svg>
+                            </span>
+                            <span style="color: var(--text-secondary); font-size: 14px; font-weight: 600;">Tor Address:</span>
+                            <a href="javascript:void(0)" id="tor-url-display" onclick="copyRelayUrlText('tor-url-display')" style="color: var(--text-primary); font-size: 14px; text-decoration: none; cursor: pointer;" title="Click to copy">-</a>
+                            <a href="javascript:void(0)" onclick="copyRelayUrlText('tor-url-display')" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; padding: 4px;" title="Copy to clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </a>
+                        </div>
                     </div>
 
                     <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: center;">
@@ -217,6 +252,10 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="quick-tips" style="margin-top: 20px;">
+                            <strong>💡 Tips:</strong> Save after each change • Restart to apply changes • npub required
+                        </div>
                     </div>
 
                     <!-- Step 1: Owner Configuration (updated for both modes) -->
@@ -245,6 +284,16 @@
                                        placeholder="wss://relay.yourdomain.com or ws://localhost:3355">
                                 <span class="form-hint">The public URL where your relay can be accessed (use wss:// for production, ws:// for local testing)</span>
                             </div>
+
+                            <!-- Tor Address Display (Umbrel only) -->
+                            <div id="tor-section-simple" class="form-group" style="display: none;">
+                                <label class="form-label">Tor Address (.onion)</label>
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <input type="text" id="tor-address-simple" readonly style="flex: 1; background: var(--bg-tertiary); cursor: text;">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="copyTorAddress('tor-address-simple')" style="min-width: 80px;">Copy</button>
+                                </div>
+                                <span class="form-hint">Your relay is accessible via Tor. Share this address for privacy-focused connections.</span>
+                            </div>
                         </div>
 
                         <div id="full-config-step" style="display: none;">
@@ -271,9 +320,20 @@
                             <span class="form-hint">WebSocket URL where your relay is accessible (use wss:// for production with SSL)</span>
                         </div>
 
+                        <!-- Tor Address Display (Umbrel only) -->
+                        <div id="tor-section-full" class="form-group" style="display: none;">
+                            <label class="form-label">Tor Address (.onion)</label>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <input type="text" id="tor-address-full" readonly style="flex: 1; background: var(--bg-tertiary); cursor: text;">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="copyTorAddress('tor-address-full')" style="min-width: 80px;">Copy</button>
+                            </div>
+                            <span class="form-hint">Your relay is accessible via Tor. Share this address for privacy-focused connections.</span>
+                        </div>
+
                         <div class="form-group">
                             <label class="form-label">Relay Port</label>
-                            <input type="number" name="RELAY_PORT" value="3355" min="1" max="65535">
+                            <input type="number" name="RELAY_PORT" value="3355" min="1" max="65535" readonly>
+                            <span class="form-hint">Haven uses port 3355 as the standard relay port</span>
                         </div>
 
                         <div class="form-group">

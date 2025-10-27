@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRelayConfig('import');
     checkStatus();
     loadVersion();
+    loadTorInfo(); // Load Tor .onion address (Umbrel only)
+    loadRelayUrlDisplay(); // Load relay URL for Get Started page
     updateWizardStep(); // Initialize navigation buttons
     syncNpubFields(); // Sync npub fields between simple and full mode
 
@@ -707,6 +709,8 @@ async function saveConfiguration() {
             document.getElementById('env-editor').value = envContent;
             // Reload form to ensure all fields are in sync
             loadConfigIntoForm();
+            // Update relay URL display on Get Started page
+            loadRelayUrlDisplay();
         } else {
             showNotification('Failed to save: ' + data.error, 'error');
         }
@@ -862,6 +866,152 @@ async function loadVersion() {
     }
 }
 
+// Load Tor information (Umbrel only)
+async function loadTorInfo() {
+    try {
+        const response = await fetch('/api/tor');
+        const data = await response.json();
+
+        if (data.success && data.available && data.address) {
+            // Show Tor sections in both simple and full mode (config wizard)
+            const torSectionSimple = document.getElementById('tor-section-simple');
+            const torSectionFull = document.getElementById('tor-section-full');
+            const torAddressSimple = document.getElementById('tor-address-simple');
+            const torAddressFull = document.getElementById('tor-address-full');
+
+            if (torSectionSimple) {
+                torSectionSimple.style.display = 'block';
+            }
+            if (torSectionFull) {
+                torSectionFull.style.display = 'block';
+            }
+            if (torAddressSimple) {
+                torAddressSimple.value = data.address;
+            }
+            if (torAddressFull) {
+                torAddressFull.value = data.address;
+            }
+
+            // Show Tor address on Get Started page
+            const torUrlDisplaySection = document.getElementById('tor-url-display-section');
+            const torUrlDisplay = document.getElementById('tor-url-display');
+
+            if (torUrlDisplaySection && torUrlDisplay) {
+                torUrlDisplaySection.style.display = 'flex';
+                torUrlDisplay.textContent = data.address;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load Tor info:', error);
+    }
+}
+
+// Load relay URL for Get Started page
+async function loadRelayUrlDisplay() {
+    try {
+        const response = await fetch('/api/config/env');
+        const data = await response.json();
+
+        if (data.success) {
+            const envContent = data.content;
+
+            // Check if OWNER_NPUB is configured
+            const npubMatch = envContent.match(/^OWNER_NPUB=(.*)$/m);
+            const relayConnectionInfo = document.getElementById('relay-connection-info');
+            const relaySeparator = document.getElementById('relay-separator');
+
+            if (npubMatch) {
+                const npub = npubMatch[1].replace(/^"(.*)"$/, '$1').trim();
+
+                // Only show relay info if npub is configured and not the default placeholder
+                if (npub && !npub.includes('YOUR_PUBLIC_KEY_HERE')) {
+                    // Parse RELAY_URL from .env content
+                    const relayUrlMatch = envContent.match(/^RELAY_URL=(.*)$/m);
+                    if (relayUrlMatch) {
+                        const relayUrl = relayUrlMatch[1].replace(/^"(.*)"$/, '$1').trim();
+                        const relayUrlDisplay = document.getElementById('relay-url-display');
+
+                        if (relayUrlDisplay && relayUrl) {
+                            relayUrlDisplay.textContent = relayUrl;
+                        }
+                    }
+
+                    // Show the relay connection info section and separator
+                    if (relayConnectionInfo) {
+                        relayConnectionInfo.style.display = 'flex';
+                    }
+                    if (relaySeparator) {
+                        relaySeparator.style.display = 'block';
+                    }
+                } else {
+                    // Hide the section if no valid npub
+                    if (relayConnectionInfo) {
+                        relayConnectionInfo.style.display = 'none';
+                    }
+                    if (relaySeparator) {
+                        relaySeparator.style.display = 'none';
+                    }
+                }
+            } else {
+                // Hide the section if no npub found
+                if (relayConnectionInfo) {
+                    relayConnectionInfo.style.display = 'none';
+                }
+                if (relaySeparator) {
+                    relaySeparator.style.display = 'none';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load relay URL for display:', error);
+    }
+}
+
+// Copy relay URL text to clipboard (for Get Started page - span elements)
+function copyRelayUrlText(elementId) {
+    const element = document.getElementById(elementId);
+    if (element && element.textContent && element.textContent !== '-') {
+        navigator.clipboard.writeText(element.textContent).then(() => {
+            showNotification('Address copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showNotification('Failed to copy to clipboard', 'error');
+        });
+    }
+}
+
+// Copy relay URL to clipboard (for config wizard - input elements)
+function copyRelayUrl(elementId) {
+    const input = document.getElementById(elementId);
+    if (input && input.value) {
+        input.select();
+        input.setSelectionRange(0, 99999); // For mobile devices
+
+        navigator.clipboard.writeText(input.value).then(() => {
+            showNotification('Address copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showNotification('Failed to copy to clipboard', 'error');
+        });
+    }
+}
+
+// Copy Tor address to clipboard (for config wizard)
+function copyTorAddress(elementId) {
+    const input = document.getElementById(elementId);
+    if (input) {
+        input.select();
+        input.setSelectionRange(0, 99999); // For mobile devices
+
+        navigator.clipboard.writeText(input.value).then(() => {
+            showNotification('Tor address copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showNotification('Failed to copy to clipboard', 'error');
+        });
+    }
+}
+
 // Status checking
 async function checkStatus() {
     try {
@@ -976,6 +1126,8 @@ async function saveEnvConfigAdvanced() {
             showNotification('✓ Configuration saved successfully', 'success');
             // Reload form to ensure all fields are in sync
             loadConfigIntoForm();
+            // Update relay URL display on Get Started page
+            loadRelayUrlDisplay();
         } else {
             showNotification('Failed to save: ' + data.error, 'error');
         }

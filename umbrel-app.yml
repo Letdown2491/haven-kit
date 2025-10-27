@@ -2,7 +2,7 @@ manifestVersion: 1
 id: haven
 category: social
 name: Haven
-version: "1.3.2"
+version: "1.3.3"
 tagline: High Availability Vault for Events on Nostr
 description: >-
   Haven is a sovereign personal relay for the Nostr protocol, designed for storing
@@ -47,6 +47,9 @@ port: 8080
 gallery:
   - 1.jpg
   - 2.jpg
+tor:
+  - port: 3355
+    hiddenServicePort: 80
 path: ""
 defaultUsername: ""
 defaultPassword: ""
