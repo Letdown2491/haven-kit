@@ -11,13 +11,16 @@ RUN apk add --no-cache docker-cli py3-pip && \
     pip3 install --break-system-packages podman-compose
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY ./config-ui/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY app.py .
-COPY templates/ ./templates/
-COPY static/ ./static/
+COPY ./config-ui/app.py .
+COPY ./config-ui/templates/ ./templates/
+COPY ./config-ui/static/ ./static/
+
+# Copy version file from project root
+COPY ./VERSION /app/VERSION
 
 # Expose port for web UI
 EXPOSE 8080

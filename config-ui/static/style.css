@@ -1077,8 +1077,47 @@ code {
     color: var(--error);
 }
 
+.log-line.warning {
+    color: var(--warning);
+}
+
 .log-line.success {
     color: var(--success);
+}
+
+/* Full-height logs section */
+.logs-section {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 220px);
+    min-height: 500px;
+}
+
+.logs-section .section-header {
+    flex-shrink: 0;
+}
+
+.log-container-full {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-bottom: 1rem;
+}
+
+.log-container-full .log-output {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: var(--text-secondary);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    line-height: 1.5;
 }
 
 .log-line.warning {

@@ -610,6 +610,126 @@ def import_stream():
     return Response(generate(), mimetype='text/event-stream')
 
 
-if __name__ == '__main__':
+@app.route('/api/logs/stream', methods=['GET'])
+def stream_logs():
+    """Stream logs from the haven_relay container in real-time via SSE"""
+    def generate():
+        container_name = get_relay_container_name()
+        process = None
+
+        try:
+            # Start docker logs in follow mode
+            process = subprocess.Popen(
+                [CONTAINER_RUNTIME, 'logs', '-f', '--tail', '100', container_name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+
+            # Send initial connection success message
+            yield f"data: {json.dumps({'type': 'status', 'status': 'connected'})}\n\n"
+
+            # Stream logs line by line
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    line = line.rstrip('\n')
+                    # Determine log type based on content
+                    log_type = 'info'
+                    if 'ERROR' in line or 'error' in line or 'Error' in line:
+                        log_type = 'error'
+                    elif 'WARN' in line or 'warning' in line or 'Warning' in line:
+                        log_type = 'warning'
+                    elif 'success' in line.lower() or 'started' in line.lower():
+                        log_type = 'success'
+
+                    yield f"data: {json.dumps({'type': log_type, 'message': line})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Stream error: {str(e)}'})}\n\n"
+        finally:
+            if process:
+                process.terminate()
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+
+    return Response(generate(), mimetype='text/event-stream')
+
+
+@app.route('/api/version', methods=['GET'])
+def get_version():
+    """Get the application version"""
+    try:
+        version_file = Path('/app/VERSION')
+        if version_file.exists():
+            version = version_file.read_text().strip()
+            return jsonify({
+                'success': True,
+                'version': version
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'version': 'unknown'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'version': 'unknown',
+            'error': str(e)
+        })
+
+
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    """Fetch logs from the haven_relay container (for download)"""
+    try:
+        container_name = get_relay_container_name()
+
+        # Get logs from container (all logs, no tail limit)
+        result = subprocess.run(
+            [CONTAINER_RUNTIME, 'logs', container_name],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            # Combine stdout and stderr
+            logs = result.stdout
+            if result.stderr:
+                logs += result.stderr
+
+            return jsonify({
+                'success': True,
+                'logs': logs
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch logs: {result.stderr}'
+            }), 500
+
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'success': False,
+            'error': 'Request timed out while fetching logs'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# Ensure config files exist when the module is loaded (with error handling)
+try:
     ensure_config_files()
+except Exception as e:
+    print(f"Warning: Failed to ensure config files: {e}", flush=True)
+
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)

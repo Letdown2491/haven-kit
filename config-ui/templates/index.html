@@ -16,12 +16,12 @@
                     </div>
                     <div>
                         <h1>HAVEN Kit</h1>
-                        <div class="subtitle">Simple configuration tool to set up a HAVEN Nostr relay <a href="https://github.com/Letdown2491/haven-kit" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none;">(View project)</a></div>
+                        <div class="subtitle">Simple configuration tool for the HAVEN Nostr relay • <span id="version-text">v...</span></div>
                     </div>
                 </div>
                 <span id="status-indicator" class="status-badge">
                     <span class="dot"></span>
-                    <span id="status-text">Checking status...</span>
+                    <span id="status-text">Checking...</span>
                 </span>
             </div>
 
@@ -105,6 +105,11 @@
 
                     <div class="quick-tips">
                         <strong>💡 Tips:</strong> Save after each change • Restart to apply changes • npub required
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: center;">
+                        <button class="btn btn-secondary btn-sm" onclick="switchToTab('logs')" style="min-width: 160px; justify-content: center;">View Logs</button>
+                        <button class="btn btn-warning btn-sm" onclick="restartHaven()" style="min-width: 160px; justify-content: center;">Restart HAVEN</button>
                     </div>
                 </div>
             </div>
@@ -500,9 +505,14 @@
                         <button type="button" class="btn btn-secondary" id="prev-btn" onclick="previousStep()" style="display: none;">
                             ← Previous
                         </button>
-                        <button type="button" class="btn btn-primary" id="next-btn">
-                            Next →
-                        </button>
+                        <div style="display: flex; gap: 12px;">
+                            <button type="button" class="btn btn-primary" id="next-btn">
+                                Next →
+                            </button>
+                            <button type="button" class="btn btn-warning" id="restart-btn" onclick="restartHaven()" style="display: none;">
+                                Restart HAVEN
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -525,8 +535,9 @@
                     <button class="btn btn-secondary" onclick="addRelay('blastr')">Add Relay</button>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end;">
-                    <button class="btn btn-primary" onclick="saveRelayConfig('blastr')">Save Blastr Relay Configuration</button>
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button class="btn btn-primary" onclick="saveRelayConfig('blastr')">Save Configuration</button>
+                    <button class="btn btn-warning" onclick="restartHaven()">Restart HAVEN</button>
                 </div>
             </div>
         </div>
@@ -548,8 +559,9 @@
                     <button class="btn btn-secondary" onclick="addRelay('import')">Add Relay</button>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end;">
-                    <button class="btn btn-primary" onclick="saveRelayConfig('import')">Save Import Relay Configuration</button>
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button class="btn btn-primary" onclick="saveRelayConfig('import')">Save Configuration</button>
+                    <button class="btn btn-warning" onclick="restartHaven()">Restart HAVEN</button>
                 </div>
             </div>
         </div>
@@ -587,6 +599,35 @@
             </div>
         </div>
 
+        <!-- Logs Tab -->
+        <div class="tab-content" id="logs-tab">
+            <div class="section logs-section">
+                <div class="section-header">
+                    <h2>HAVEN Relay Logs</h2>
+                    <p class="help-text">
+                        Real-time logs from the HAVEN relay to troubleshoot issues and monitor activity.
+                    </p>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
+                    <button class="btn btn-secondary" id="clear-logs-btn" onclick="clearLogsDisplay()">Clear Display</button>
+                    <button class="btn btn-secondary" id="pause-logs-btn" onclick="toggleLogsPause()">Pause</button>
+                    <button class="btn btn-secondary" id="download-logs-btn" onclick="downloadLogs()">Download Logs</button>
+                    <div id="logs-status" style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                        <span class="dot" style="background: var(--text-secondary);"></span>
+                        <span id="logs-status-text">Connecting...</span>
+                        <span id="logs-line-count" style="color: var(--text-secondary);"></span>
+                    </div>
+                </div>
+
+                <div id="logs-container" class="log-container-full">
+                    <div id="logs-output" class="log-output">
+                        <div class="log-line" style="color: var(--text-secondary);">Connecting to log stream...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Configuration Variables Tab (Raw .env editor) -->
         <div class="tab-content" id="advanced-tab">
             <div class="section">
@@ -610,19 +651,6 @@
                     <button class="btn btn-secondary" onclick="showWizardConfig()" style="flex: 0 0 auto;">
                         ← Back to Configuration
                     </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Restart Section -->
-        <div class="restart-section">
-            <div class="restart-wrapper">
-                <div class="restart-content">
-                    <h3>Restart HAVEN Relay</h3>
-                    <p class="help-text">Restart to apply configuration changes</p>
-                </div>
-                <div class="restart-action">
-                    <button class="btn btn-warning" onclick="restartHaven()">Restart Now</button>
                 </div>
             </div>
         </div>

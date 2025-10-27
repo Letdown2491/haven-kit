@@ -28,7 +28,7 @@ jobs:
             context: ./haven-relay
             dockerfile: ./haven-relay/Dockerfile
           - image: haven-config-ui
-            context: ./config-ui
+            context: .
             dockerfile: ./config-ui/Dockerfile
 
     steps:

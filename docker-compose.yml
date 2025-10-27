@@ -28,8 +28,8 @@ services:
   # Configuration UI
   config_ui:
     build:
-      context: ./config-ui
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./config-ui/Dockerfile
     container_name: haven_config_ui_1
     restart: unless-stopped
     ports:

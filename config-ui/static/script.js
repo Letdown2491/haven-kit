@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRelayConfig('blastr');
     loadRelayConfig('import');
     checkStatus();
+    loadVersion();
     updateWizardStep(); // Initialize navigation buttons
     syncNpubFields(); // Sync npub fields between simple and full mode
 
@@ -204,31 +205,37 @@ function updateWizardStep() {
     // Update navigation buttons
     const prevBtn = document.getElementById('prev-btn');
     const nextBtn = document.getElementById('next-btn');
+    const restartBtn = document.getElementById('restart-btn');
 
     if (currentStep === 0) {
         prevBtn.style.display = 'none';
         nextBtn.style.display = 'none';
+        if (restartBtn) restartBtn.style.display = 'none';
     } else if (currentStep === 1) {
         prevBtn.style.display = 'inline-flex';
         if (configMode === 'simple') {
-            nextBtn.innerHTML = '💾 Save Configuration';
+            nextBtn.innerHTML = 'Save Configuration';
             nextBtn.onclick = saveConfiguration;
+            if (restartBtn) restartBtn.style.display = 'inline-flex';
         } else {
             nextBtn.innerHTML = 'Next →';
             nextBtn.onclick = nextStep;
+            if (restartBtn) restartBtn.style.display = 'none';
         }
         nextBtn.style.display = 'inline-flex';
     } else {
         prevBtn.style.display = 'inline-flex';
         // On last step, change Next button to Save Configuration
         if (currentStep === lastStep) {
-            nextBtn.innerHTML = '💾 Save Configuration';
+            nextBtn.innerHTML = 'Save Configuration';
             nextBtn.onclick = saveConfiguration;
             nextBtn.style.display = 'inline-flex';
+            if (restartBtn) restartBtn.style.display = 'inline-flex';
         } else {
             nextBtn.innerHTML = 'Next →';
             nextBtn.onclick = nextStep;
             nextBtn.style.display = 'inline-flex';
+            if (restartBtn) restartBtn.style.display = 'none';
         }
     }
 
@@ -695,7 +702,7 @@ async function saveConfiguration() {
         const data = await response.json();
 
         if (data.success) {
-            showNotification('✓ Configuration saved successfully! You can now restart HAVEN to apply changes.', 'success');
+            showNotification('✓ Configuration saved successfully', 'success');
             // Update the advanced editor too
             document.getElementById('env-editor').value = envContent;
             // Reload form to ensure all fields are in sync
@@ -765,6 +772,31 @@ function switchToTab(tabName) {
     const tabButton = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
     if (tabButton) {
         tabButton.click();
+    } else {
+        // Handle tabs without navigation buttons (like logs)
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+
+        // Remove active class from all tab buttons
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Show the requested tab
+        const tabContent = document.getElementById(`${tabName}-tab`);
+        if (tabContent) {
+            tabContent.classList.add('active');
+
+            // Special handling for logs tab - start streaming
+            if (tabName === 'logs') {
+                setTimeout(startLogStream, 100);
+            }
+        }
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
 
@@ -807,6 +839,29 @@ function showWizardConfig() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Version loading
+async function loadVersion() {
+    try {
+        const response = await fetch('/api/version');
+        const data = await response.json();
+
+        const versionText = document.getElementById('version-text');
+        if (versionText) {
+            if (data.success && data.version) {
+                versionText.textContent = `v${data.version}`;
+            } else {
+                versionText.textContent = 'v?.?.?';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load version:', error);
+        const versionText = document.getElementById('version-text');
+        if (versionText) {
+            versionText.textContent = 'v?.?.?';
+        }
+    }
+}
+
 // Status checking
 async function checkStatus() {
     try {
@@ -830,16 +885,16 @@ async function checkStatus() {
 
             if (isRunning && isHealthy) {
                 indicator.className = 'status-badge running';
-                statusText.textContent = 'HAVEN Running';
+                statusText.textContent = 'Running';
                 if (importButton && !isImportActive && importButton.dataset.originalText) {
                     importButton.innerHTML = importButton.dataset.originalText;
                 }
             } else if (isRunning) {
                 indicator.className = 'status-badge starting';
-                statusText.textContent = 'HAVEN Starting...';
+                statusText.textContent = 'Starting...';
             } else {
                 indicator.className = 'status-badge stopped';
-                statusText.textContent = 'HAVEN Stopped';
+                statusText.textContent = 'Stopped';
             }
 
             if (importButton && !isImportActive) {
@@ -854,7 +909,7 @@ async function checkStatus() {
             }
         } else {
             indicator.className = 'status-badge stopped';
-            statusText.textContent = 'HAVEN Stopped';
+            statusText.textContent = 'Stopped';
             if (importButton && !isImportActive) {
                 importButton.disabled = true;
                 importButton.dataset.originalText = importButton.dataset.originalText || importButton.innerHTML;
@@ -866,7 +921,7 @@ async function checkStatus() {
         const indicator = document.getElementById('status-indicator');
         const statusText = document.getElementById('status-text');
         indicator.className = 'status-badge';
-        statusText.textContent = 'Status Unknown';
+        statusText.textContent = 'Unknown';
     }
 }
 
@@ -1450,3 +1505,226 @@ function startImportLogStream() {
         logOutput.appendChild(logLine);
     };
 }
+
+// ==================== Logs Functionality ====================
+
+let logsEventSource = null;
+let logsLineCount = 0;
+let logsPaused = false;
+let logsPendingLines = [];
+
+function startLogStream() {
+    // Close existing connection if any
+    if (logsEventSource) {
+        logsEventSource.close();
+    }
+
+    const logsOutput = document.getElementById('logs-output');
+    const statusText = document.getElementById('logs-status-text');
+    const lineCountEl = document.getElementById('logs-line-count');
+    const statusDot = document.querySelector('#logs-status .dot');
+
+    // Clear output
+    logsOutput.innerHTML = '';
+    logsLineCount = 0;
+    logsPendingLines = [];
+
+    // Update status
+    statusText.textContent = 'Connecting...';
+    statusDot.style.background = 'var(--warning)';
+    lineCountEl.textContent = '';
+
+    // Create new EventSource for streaming logs
+    logsEventSource = new EventSource('/api/logs/stream');
+
+    logsEventSource.onopen = function() {
+        statusText.textContent = 'Connected • Streaming';
+        statusDot.style.background = 'var(--success)';
+    };
+
+    logsEventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'status' && data.status === 'connected') {
+            // Initial connection confirmation
+            return;
+        }
+
+        // Add log line
+        const logLine = document.createElement('div');
+        logLine.className = 'log-line';
+
+        if (data.type === 'error') {
+            logLine.classList.add('error');
+        } else if (data.type === 'warning') {
+            logLine.classList.add('warning');
+        } else if (data.type === 'success') {
+            logLine.classList.add('success');
+        }
+
+        logLine.textContent = data.message;
+
+        if (logsPaused) {
+            // If paused, store the line for later
+            logsPendingLines.push(logLine);
+        } else {
+            // Add to display
+            logsOutput.appendChild(logLine);
+            logsLineCount++;
+
+            // Limit to last 1000 lines to prevent memory issues
+            if (logsLineCount > 1000) {
+                logsOutput.removeChild(logsOutput.firstChild);
+                logsLineCount--;
+            }
+
+            // Auto-scroll to bottom
+            logsOutput.scrollTop = logsOutput.scrollHeight;
+
+            // Update line count
+            lineCountEl.textContent = `(${logsLineCount} lines)`;
+        }
+    };
+
+    logsEventSource.onerror = function(error) {
+        console.error('EventSource error:', error);
+        statusText.textContent = 'Disconnected';
+        statusDot.style.background = 'var(--error)';
+
+        logsEventSource.close();
+        logsEventSource = null;
+
+        const errorLine = document.createElement('div');
+        errorLine.className = 'log-line error';
+        errorLine.textContent = 'Connection to log stream lost. Refresh the page to reconnect.';
+        logsOutput.appendChild(errorLine);
+    };
+}
+
+function stopLogStream() {
+    if (logsEventSource) {
+        logsEventSource.close();
+        logsEventSource = null;
+
+        const statusText = document.getElementById('logs-status-text');
+        const statusDot = document.querySelector('#logs-status .dot');
+        statusText.textContent = 'Disconnected';
+        statusDot.style.background = 'var(--text-secondary)';
+    }
+}
+
+function clearLogsDisplay() {
+    const logsOutput = document.getElementById('logs-output');
+    const lineCountEl = document.getElementById('logs-line-count');
+
+    logsOutput.innerHTML = '';
+    logsLineCount = 0;
+    logsPendingLines = [];
+    lineCountEl.textContent = '';
+
+    const emptyLine = document.createElement('div');
+    emptyLine.className = 'log-line';
+    emptyLine.style.color = 'var(--text-secondary)';
+    emptyLine.textContent = 'Display cleared. Logs will continue streaming...';
+    logsOutput.appendChild(emptyLine);
+
+    showNotification('Log display cleared', 'info');
+}
+
+function toggleLogsPause() {
+    const pauseBtn = document.getElementById('pause-logs-btn');
+    const logsOutput = document.getElementById('logs-output');
+
+    logsPaused = !logsPaused;
+
+    if (logsPaused) {
+        pauseBtn.textContent = 'Resume';
+        pauseBtn.classList.remove('btn-secondary');
+        pauseBtn.classList.add('btn-warning');
+        showNotification('Log streaming paused', 'info');
+    } else {
+        pauseBtn.textContent = 'Pause';
+        pauseBtn.classList.remove('btn-warning');
+        pauseBtn.classList.add('btn-secondary');
+
+        // Add any pending lines
+        if (logsPendingLines.length > 0) {
+            logsPendingLines.forEach(line => {
+                logsOutput.appendChild(line);
+                logsLineCount++;
+            });
+            logsPendingLines = [];
+
+            // Auto-scroll to bottom
+            logsOutput.scrollTop = logsOutput.scrollHeight;
+
+            // Update line count
+            const lineCountEl = document.getElementById('logs-line-count');
+            lineCountEl.textContent = `(${logsLineCount} lines)`;
+        }
+
+        showNotification('Log streaming resumed', 'info');
+    }
+}
+
+async function downloadLogs() {
+    const btn = document.getElementById('download-logs-btn');
+    const originalContent = btn.innerHTML;
+
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> Loading...';
+
+        const response = await fetch('/api/logs');
+        const data = await response.json();
+
+        if (data.success) {
+            // Create a blob and download it
+            const blob = new Blob([data.logs], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `haven-relay-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showNotification('Logs downloaded successfully', 'success');
+        } else {
+            showNotification('Failed to download logs: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error downloading logs:', error);
+        showNotification('Error downloading logs: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+    }
+}
+
+// Auto-connect/disconnect when switching to/from logs tab
+document.addEventListener('DOMContentLoaded', () => {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.dataset.tab;
+            if (tabName === 'logs') {
+                // Start streaming when entering logs tab
+                setTimeout(startLogStream, 100);
+            } else {
+                // Stop streaming when leaving logs tab
+                if (logsEventSource) {
+                    stopLogStream();
+                    logsPaused = false;
+                    const pauseBtn = document.getElementById('pause-logs-btn');
+                    if (pauseBtn) {
+                        pauseBtn.textContent = 'Pause';
+                        pauseBtn.classList.remove('btn-warning');
+                        pauseBtn.classList.add('btn-secondary');
+                    }
+                }
+            }
+        });
+    });
+});
