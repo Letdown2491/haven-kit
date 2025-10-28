@@ -143,7 +143,7 @@ Example:
 
 After configuration, your relays will be available at:
 
-- **Outbox Relay**: `ws://[umbrel-ip]:3355`
+- **Outbox Relay**: `ws://[server-ip]:3355`
 - **Private Relay**: `ws://[umbrel-ip]:3355/private`
 - **Chat Relay**: `ws://[umbrel-ip]:3355/chat`
 - **Inbox Relay**: `ws://[umbrel-ip]:3355/inbox`
@@ -191,7 +191,7 @@ All Haven data is stored in volumes managed by Umbrel:
 
 Your data persists across container restarts and app updates.
 
-## Development or Running Local Instance
+## Installation on local machine or VPS
 
 > **Note**: This section is for **local development and testing** using Docker or Podman on your computer.
 > **This is NOT for installing on Umbrel.** For Umbrel installation, see the [Installation on Umbrel](#installation-on-umbrel) section above.
@@ -266,6 +266,64 @@ To use a specific version of Haven, edit `haven-relay/Dockerfile` and change the
 
 ```dockerfile
 ARG HAVEN_VERSION=v1.2.3  # Change to desired version/tag
+```
+
+## Proxy Configuration
+
+If you want a simple drop-in Nginx configuration for your containers to access the relay publicly, you can copy the Nginx configuration down below.
+
+```
+# /etc/nginx/sites-available/default
+
+# 1) Plain HTTP: only to issue/renew certs & redirect to HTTPS
+server {
+  listen 80;
+  listen [::]:80;
+  server_name YOUR_PUBLIC_URL_HERE;
+
+  # This will cap your Blossom upload size to 100MB so feel free to edit. Use 0 for no caps.
+  client_max_body_size 100m;
+
+  # ACME challenge path for Certbot (webroot method fallback)
+  location /.well-known/acme-challenge/ { root /var/www/html; }
+
+  # Redirect everything else to HTTPS
+  location / { return 301 https://$host$request_uri; }
+}
+
+# 2) HTTPS: reverse proxy to HAVEN Relay on localhost:3355
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  http2 on;
+  server_name YOUR_PUBLIC_URL_HERE; # For example, relay.myhavenrelay.com. No need for http or https here.
+
+  # SSL Certificates using Let's Encrypt
+  ssl_certificate     /etc/letsencrypt/live/YOUR_PUBLIC_URL_HERE/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/YOUR_PUBLIC_URL_HERE/privkey.pem;
+
+  client_max_body_size 100m;
+
+  # (Optional but useful for long-lived WS/uploads)
+  proxy_read_timeout  3600s;
+  proxy_send_timeout  3600s;
+  proxy_buffering     off;
+
+  location / {
+    proxy_pass http://127.0.0.1:3355;   # This will prevent yoour relay from being accessed via the public IP address and only internally on your machine for added security.
+
+    # keep your relay headers exactly as recommended
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # WebSocket upgrade
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade           $http_upgrade;
+    proxy_set_header Connection        "upgrade";
+  }
+}
 ```
 
 ## Troubleshooting
