@@ -281,8 +281,8 @@
                             <div class="form-group">
                                 <label class="form-label">Relay URL*</label>
                                 <input type="text" name="RELAY_URL_SIMPLE" id="RELAY_URL_SIMPLE" required
-                                       placeholder="wss://relay.yourdomain.com or ws://localhost:3355">
-                                <span class="form-hint">The public URL where your relay can be accessed (use wss:// for production, ws:// for local testing)</span>
+                                       placeholder="relay.yourdomain.com or localhost:3355">
+                                <span class="form-hint">The public hostname where your relay can be accessed — no wss:// or https:// prefix needed (any scheme is stripped automatically)</span>
                             </div>
 
                             <!-- Tor Address Display (Umbrel only) -->
@@ -306,6 +306,13 @@
                                        placeholder="npub1..." pattern="npub1[a-z0-9]{58,}">
                                 <span class="form-hint">Get your npub from any Nostr client or <a href="https://nostr.how" target="_blank">nostr.how</a></span>
                             </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Your Name or Nickname*</label>
+                                <input type="text" name="USERNAME_FULL" id="USERNAME_FULL"
+                                       placeholder="e.g., Geek, Alice, Bob">
+                                <span class="form-hint">Stored as the relay owner name (relay names are configured separately in the next steps)</span>
+                            </div>
                         </div>
                     </div>
 
@@ -316,8 +323,8 @@
 
                         <div class="form-group">
                             <label class="form-label">Relay URL*</label>
-                            <input type="text" name="RELAY_URL" placeholder="ws://localhost:3355" required>
-                            <span class="form-hint">WebSocket URL where your relay is accessible (use wss:// for production with SSL)</span>
+                            <input type="text" name="RELAY_URL" placeholder="relay.yourdomain.com or localhost:3355" required>
+                            <span class="form-hint">Hostname (and optional port) where your relay is accessible — no wss:// or https:// prefix needed (any scheme is stripped automatically)</span>
                         </div>
 
                         <!-- Tor Address Display (Umbrel only) -->

@@ -59,6 +59,20 @@ function syncNpubFields() {
             simpleUrlInput.value = fullUrlInput.value;
         });
     }
+
+    // Sync the owner username between simple and full mode
+    const simpleUsernameInput = document.getElementById('USERNAME');
+    const fullUsernameInput = document.getElementById('USERNAME_FULL');
+
+    if (simpleUsernameInput && fullUsernameInput) {
+        simpleUsernameInput.addEventListener('input', () => {
+            fullUsernameInput.value = simpleUsernameInput.value;
+        });
+
+        fullUsernameInput.addEventListener('input', () => {
+            simpleUsernameInput.value = fullUsernameInput.value;
+        });
+    }
 }
 
 // Wizard Navigation
@@ -116,6 +130,7 @@ function setConfigMode(mode) {
         document.getElementById('RELAY_URL_SIMPLE').required = true;
         // Clear required from full mode fields
         document.getElementById('OWNER_NPUB_FULL').required = false;
+        document.getElementById('USERNAME_FULL').required = false;
         const fullUrlInput = document.querySelector('[name="RELAY_URL"]');
         if (fullUrlInput) fullUrlInput.required = false;
     } else {
@@ -127,6 +142,7 @@ function setConfigMode(mode) {
         document.getElementById('RELAY_URL_SIMPLE').required = false;
         // Set required for full mode fields
         document.getElementById('OWNER_NPUB_FULL').required = true;
+        document.getElementById('USERNAME_FULL').required = true;
         const fullUrlInput = document.querySelector('[name="RELAY_URL"]');
         if (fullUrlInput) fullUrlInput.required = true;
     }
@@ -273,10 +289,12 @@ async function loadConfigIntoForm() {
                         return;
                     }
 
-                    // Special handling for OWNER_USERNAME - map to USERNAME field
+                    // Special handling for OWNER_USERNAME - populate both simple and full mode fields
                     if (key === 'OWNER_USERNAME') {
                         const usernameInput = document.getElementById('USERNAME');
+                        const fullUsernameInput = document.getElementById('USERNAME_FULL');
                         if (usernameInput) usernameInput.value = cleanValue;
+                        if (fullUsernameInput) fullUsernameInput.value = cleanValue;
                         return;
                     }
 
@@ -430,6 +448,7 @@ OWNER_NPUB="${ownerNpub}"
 OWNER_USERNAME="${username}"
 
 # Relay Configuration (REQUIRED)
+# RELAY_URL is a bare hostname - Haven adds wss:// and https:// itself
 RELAY_URL="${relayHost}"
 RELAY_PORT=3355
 RELAY_BIND_ADDRESS="0.0.0.0"
@@ -533,8 +552,11 @@ TZ="${getExistingVal('TZ') || 'UTC'}"
     }
 
     // Full mode - use form values
-    // Get username if it was previously set (for consistency)
-    const username = formData.get('USERNAME') || existingEnv.get('OWNER_USERNAME')?.replace(/^"(.*)"$/, '$1') || '';
+    const username =
+        formData.get('USERNAME_FULL') ||
+        formData.get('USERNAME') ||
+        existingEnv.get('OWNER_USERNAME')?.replace(/^"(.*)"$/, '$1') ||
+        '';
 
     // Helper for getting existing values (same as Simple mode)
     const getExistingVal = (key) => existingEnv.get(key)?.replace(/^"(.*)"$/, '$1') || '';
@@ -554,6 +576,7 @@ OWNER_NPUB="${ownerNpub}"
 OWNER_USERNAME="${username}"
 
 # Relay Configuration (REQUIRED)
+# RELAY_URL is a bare hostname - Haven adds wss:// and https:// itself
 RELAY_URL="${relayHost}"
 RELAY_PORT=${formData.get('RELAY_PORT')}
 RELAY_BIND_ADDRESS="${formData.get('RELAY_BIND_ADDRESS')}"
@@ -1032,6 +1055,8 @@ async function checkStatus() {
             const health = data.health || 'unknown';
             const isRunning = status === 'running';
             const isHealthy = health === 'healthy';
+            // Older daemons don't report `configured`; treat missing as configured
+            const isConfigured = data.configured !== false;
 
             if (isRunning && isHealthy) {
                 indicator.className = 'status-badge running';
@@ -1039,6 +1064,11 @@ async function checkStatus() {
                 if (importButton && !isImportActive && importButton.dataset.originalText) {
                     importButton.innerHTML = importButton.dataset.originalText;
                 }
+            } else if (isRunning && !isConfigured) {
+                // Relay container is up but the entrypoint gate is waiting for
+                // the setup wizard to write a complete configuration
+                indicator.className = 'status-badge starting';
+                statusText.textContent = 'Awaiting configuration';
             } else if (isRunning) {
                 indicator.className = 'status-badge starting';
                 statusText.textContent = 'Starting...';
@@ -1058,8 +1088,11 @@ async function checkStatus() {
                 }
             }
         } else {
-            indicator.className = 'status-badge stopped';
-            statusText.textContent = 'Stopped';
+            // Container not visible via the configured socket (e.g. the stack
+            // was launched with a different container engine) - distinct from
+            // a relay that exists but is stopped
+            indicator.className = 'status-badge';
+            statusText.textContent = 'Unknown';
             if (importButton && !isImportActive) {
                 importButton.disabled = true;
                 importButton.dataset.originalText = importButton.dataset.originalText || importButton.innerHTML;

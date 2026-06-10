@@ -2,7 +2,7 @@ manifestVersion: 1
 id: haven
 category: social
 name: Haven
-version: "1.3.3"
+version: "1.4.0"
 tagline: High Availability Vault for Events on Nostr
 description: >-
   Haven is a sovereign personal relay for the Nostr protocol, designed for storing
@@ -26,23 +26,31 @@ description: >-
   note aggregation from other relays, cloud backup capabilities, and broadcast
   distribution to multiple relays simultaneously.
 releaseNotes: >-
-  Initial release of Haven for Umbrel with configuration UI.
+  Fresh installs now start unconfigured: the relay waits for you to complete
+  the setup wizard instead of shipping with preconfigured ownership, and
+  starts automatically once configured.
 
 
-  Features:
+  Fixes and improvements:
 
-  - Web-based configuration interface for .env settings
+  - The relay and Blossom media server get a dedicated Tor hidden service;
+    the .onion address is shown in the configuration UI
 
-  - GUI editors for relay configurations (blastr and import)
+  - Fixed Blossom media downloads failing when RELAY_URL included a ws:// or
+    wss:// scheme; schemes are now stripped automatically on startup
 
-  - One-click restart functionality
+  - The dashboard shows "Awaiting configuration" on fresh installs, and Full
+    Configuration mode now includes an owner name field
 
-  - Status monitoring
+  - Haven is now built from a pinned upstream commit (v1.2.2 plus the .onion
+    relay URL fix) for reproducible builds, overridable via HAVEN_VERSION
+
+  - Updated upstream project links to the new repository location
 developer: Bitvora
-website: https://github.com/bitvora/haven
+website: https://github.com/barrydeen/haven
 dependencies: []
-repo: https://github.com/bitvora/haven
-support: https://github.com/bitvora/haven/issues
+repo: https://github.com/barrydeen/haven
+support: https://github.com/barrydeen/haven/issues
 port: 8080
 gallery:
   - 1.jpg

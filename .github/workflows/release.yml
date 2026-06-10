@@ -30,6 +30,9 @@ jobs:
           - image: haven-config-ui
             context: .
             dockerfile: ./config-ui/Dockerfile
+          - image: haven-tor
+            context: ./haven-tor
+            dockerfile: ./haven-tor/Dockerfile
 
     steps:
       - name: Checkout repository

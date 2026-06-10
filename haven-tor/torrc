@@ -1,0 +1,21 @@
+# Tor configuration for the optional HAVEN relay hidden service.
+# Edit + `docker compose restart tor` to apply; no image rebuild needed.
+
+# Started as root by the entrypoint (to fix volume permissions), then tor
+# drops to this user itself.
+User tor
+
+DataDirectory /var/lib/tor/data
+
+# The relay's onion address. Keys live in the mounted volume, so the address
+# is stable across restarts; delete the directory to rotate the identity.
+HiddenServiceDir /var/lib/tor/relay-hidden-service
+# Target must be an IP: tor resolves hostnames only once at startup, which
+# breaks silently if the relay container's IP changes. The address below is
+# haven_relay's static IP on tor_net (see docker-compose.tor.yml).
+HiddenServicePort 80 172.31.78.2:3355
+
+# SOCKS proxy for other containers (unused by Haven today)
+SocksPort 0.0.0.0:9050
+
+Log notice stdout

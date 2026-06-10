@@ -1,0 +1,49 @@
+# Optional Tor hidden service for the relay (local/VPS installs; Umbrel has
+# its own Tor integration). Opt in by stacking this file on the base compose:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tor.yml up -d
+#
+# The relay's .onion address appears in the configuration UI once Tor starts
+# (it is also in ${APP_DATA_DIR}/tor/relay-hidden-service/hostname). Onion
+# keys persist in ${APP_DATA_DIR}/tor; back that up to keep the address,
+# delete it to rotate.
+
+services:
+  haven_relay:
+    networks:
+      haven_network: {}
+      tor_net:
+        # Must match the HiddenServicePort target in haven-tor/torrc
+        ipv4_address: 172.31.78.2
+
+  config_ui:
+    volumes:
+      # Read-only view so the UI can display the relay's .onion address
+      - ${APP_DATA_DIR}/tor:/tor:ro,z
+    environment:
+      # World-readable copy made by the tor entrypoint (the original lives in
+      # the 0700 hidden-service dir, unreadable from other containers)
+      - RELAY_HIDDEN_SERVICE_FILE=/tor/hostname
+
+  tor:
+    build:
+      context: ./haven-tor
+      dockerfile: Dockerfile
+    container_name: haven_tor_1
+    restart: unless-stopped
+    volumes:
+      - ${APP_DATA_DIR}/tor:/var/lib/tor:z
+      - ./haven-tor/torrc:/etc/tor/torrc:ro,z
+    networks:
+      - tor_net
+    depends_on:
+      - haven_relay
+
+networks:
+  tor_net:
+    driver: bridge
+    ipam:
+      config:
+        # Change here and in haven-tor/torrc if this collides with an
+        # existing network on your host
+        - subnet: 172.31.78.0/29

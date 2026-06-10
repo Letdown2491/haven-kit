@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import json
+import re
 import subprocess
 import threading
 import time
@@ -16,6 +17,29 @@ CONFIG_DIR = Path("/haven-config")
 ENV_FILE = CONFIG_DIR / ".env"
 RELAYS_BLASTR_FILE = CONFIG_DIR / "relays_blastr.json"
 RELAYS_IMPORT_FILE = CONFIG_DIR / "relays_import.json"
+
+# The relay entrypoint refuses to start Haven until every required npub is a
+# real key (see haven-relay/entrypoint.sh); mirror that check so the UI can
+# report "awaiting configuration" instead of "stopped" on fresh installs.
+NPUB_PATTERN = re.compile(r'^npub1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}$')
+REQUIRED_NPUB_KEYS = (
+    'OWNER_NPUB', 'PRIVATE_RELAY_NPUB', 'CHAT_RELAY_NPUB',
+    'OUTBOX_RELAY_NPUB', 'INBOX_RELAY_NPUB',
+)
+
+
+def is_relay_configured():
+    """True when the .env contains a valid npub for every required key."""
+    try:
+        env = {}
+        for line in ENV_FILE.read_text().split('\n'):
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                env[key.strip()] = value.strip().strip('"').strip("'")
+        return all(NPUB_PATTERN.match(env.get(key, '')) for key in REQUIRED_NPUB_KEYS)
+    except Exception:
+        return False
 
 # Detect container runtime (Docker or Podman) and use the appropriate CLI
 def detect_container_runtime():
@@ -59,11 +83,13 @@ DEFAULT_ENV = """# Owner Configuration (REQUIRED)
 # Get this from your Nostr client or generate one at https://nostr.how
 OWNER_NPUB=npub1YOUR_PUBLIC_KEY_HERE
 
-# Relay URL (REQUIRED)
-# The public WebSocket URL where your relay can be accessed
-# For local testing: ws://localhost:3355
-# For production: wss://your-domain.com
-RELAY_URL=ws://localhost:3355
+# Relay Host (REQUIRED)
+# The public hostname (and optional port) where your relay can be accessed.
+# Hostname only - no ws:// or https:// prefix; Haven adds the scheme itself,
+# and a scheme here produces broken Blossom media URLs.
+# For local testing: localhost:3355
+# For production: relay.your-domain.com
+RELAY_URL=localhost:3355
 
 # Database Configuration
 DB_ENGINE=badger
@@ -193,7 +219,15 @@ def restart_haven():
         if result.returncode == 0:
             return jsonify({'success': True, 'message': 'Haven relay restarted successfully'})
         else:
-            return jsonify({'success': False, 'error': result.stderr}), 500
+            error = result.stderr.strip()
+            if 'no container' in error.lower() or 'no such container' in error.lower():
+                error += (
+                    f" — the config UI is talking to the {CONTAINER_RUNTIME} socket, but the relay "
+                    "container was not found there. If you launched the stack with a different "
+                    "container engine, update DOCKER_SOCK and CONTAINER_RUNTIME in the root .env "
+                    "and bring the stack up with that engine's compose command."
+                )
+            return jsonify({'success': False, 'error': error}), 500
     except subprocess.TimeoutExpired:
         return jsonify({'success': False, 'error': 'Restart command timed out'}), 500
     except Exception as e:
@@ -229,7 +263,8 @@ def get_status():
                 'success': True,
                 'status': status,
                 'health': health_status,
-                'running': running
+                'running': running,
+                'configured': is_relay_configured()
             })
         else:
             return jsonify({'success': False, 'error': 'Could not get status'}), 500
@@ -685,23 +720,35 @@ def get_version():
 
 @app.route('/api/tor', methods=['GET'])
 def get_tor_info():
-    """Get Tor .onion address information (Umbrel only)"""
+    """Get the relay's Tor .onion address"""
     try:
-        # Check for Umbrel's Tor hidden service environment variable
-        onion_hostname = os.getenv('APP_HIDDEN_SERVICE')
+        onion_hostname = None
+
+        # Preferred: hostname file written by the dedicated relay hidden
+        # service (the tor sidecar on Umbrel). Read live so the address
+        # appears as soon as tor publishes it, without an app restart.
+        hostname_file = os.getenv('RELAY_HIDDEN_SERVICE_FILE', '').strip()
+        if hostname_file:
+            try:
+                path = Path(hostname_file)
+                if path.exists():
+                    onion_hostname = path.read_text().strip() or None
+            except Exception:
+                onion_hostname = None
+
+        # Legacy fallback: the app's own Umbrel hidden service (used when the
+        # relay was exposed through it via the old host-split proxy).
+        if not onion_hostname:
+            onion_hostname = (os.getenv('APP_HIDDEN_SERVICE') or '').strip() or None
 
         if onion_hostname:
-            # Running on Umbrel with Tor enabled
-            # Clean up the hostname (remove trailing newlines/spaces)
-            onion_hostname = onion_hostname.strip()
-
             return jsonify({
                 'success': True,
                 'available': True,
                 'address': f"ws://{onion_hostname}"
             })
         else:
-            # Not running on Umbrel or Tor not configured
+            # Tor not configured / not running on Umbrel
             return jsonify({
                 'success': True,
                 'available': False,

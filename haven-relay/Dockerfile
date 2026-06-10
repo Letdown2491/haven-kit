@@ -7,9 +7,11 @@ RUN apk add --no-cache git build-base
 # Set working directory
 WORKDIR /build
 
-# Clone haven repository
-ARG HAVEN_VERSION=master
-RUN git clone https://github.com/bitvora/haven.git . && \
+# Clone haven repository (pinned for reproducible builds).
+# Currently pinned to a commit = v1.2.2 + the .onion relay URL prefix fix
+# (barrydeen/haven#125); move back to a release tag once upstream tags it.
+ARG HAVEN_VERSION=c8b61d22902ce057b64a8ee2b487ab5d0a7fbd23
+RUN git clone https://github.com/barrydeen/haven.git . && \
     git checkout ${HAVEN_VERSION}
 
 # Build the binary

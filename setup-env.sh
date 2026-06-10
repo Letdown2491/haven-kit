@@ -8,8 +8,12 @@ echo "Haven Relay - Environment Setup"
 echo "================================"
 echo ""
 
-# Detect container runtime
-if command -v podman &> /dev/null; then
+# Detect container runtime (set CONTAINER_RUNTIME=docker|podman to override,
+# e.g. when both are installed)
+if [ -n "${CONTAINER_RUNTIME:-}" ] && command -v "${CONTAINER_RUNTIME}" &> /dev/null; then
+    RUNTIME="${CONTAINER_RUNTIME}"
+    echo "✓ Using runtime from CONTAINER_RUNTIME: $RUNTIME"
+elif command -v podman &> /dev/null; then
     RUNTIME="podman"
     echo "✓ Detected: Podman"
 elif command -v docker &> /dev/null; then
@@ -44,8 +48,9 @@ else
     echo "✓ Docker socket: $DOCKER_SOCK"
 fi
 
-# Create data directories
-mkdir -p "$APP_DATA_DIR"/{config,blossom,db,templates}
+# Create data directories (tor is used by the optional docker-compose.tor.yml
+# overlay; Podman does not auto-create missing bind-mount sources)
+mkdir -p "$APP_DATA_DIR"/{config,blossom,db,templates,tor}
 echo "✓ Created data directories"
 
 # Write environment to .env file for docker-compose

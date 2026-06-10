@@ -96,6 +96,10 @@ After installation, access the Haven configuration UI through your Umbrel dashbo
 
 Configure the following settings through the web interface:
 
+#### Owner & Relay Settings
+- `OWNER_NPUB` - Your Nostr public key (npub format)
+- `RELAY_URL` - Public hostname for your relay, **without** a scheme: use `relay.your-domain.com`, not `wss://relay.your-domain.com`. Haven prepends `wss://`/`https://` itself — including a scheme here produces broken Blossom media URLs (uploads work, downloads fail).
+
 #### Database Settings
 - `DB_ENGINE` - Choose between `badger` (default) or `lmdb`
 - `LMDB_MAPSIZE` - Maximum database size in bytes (default: 273000000000 / 273GB)
@@ -122,8 +126,7 @@ Add relay URLs where your outbox posts will be automatically broadcasted. This h
 Example:
 ```json
 [
-  "wss://relay.damus.io",
-  "wss://relay.nostr.band",
+  "wss://relay.primal.net",
   "wss://nos.lol"
 ]
 ```
@@ -134,7 +137,7 @@ Add relay URLs from which Haven should import your old notes and tagged content.
 Example:
 ```json
 [
-  "wss://relay.damus.io",
+  "wss://relay.primal.net",
   "wss://nostr.wine"
 ]
 ```
@@ -160,11 +163,19 @@ This Umbrel app consists of two services:
 
 ```
 haven-kit/
-├── docker-compose.yml          # Orchestrates both services
+├── docker-compose.yml          # Orchestrates the relay and config UI
+├── docker-compose.tor.yml      # Optional Tor hidden service overlay
 ├── umbrel-app.yml              # Umbrel app manifest
 ├── exports.sh                  # Environment variable exports
+├── setup-env.sh                # Detects Docker/Podman, creates .env + dirs
+├── CHANGELOG.md                # Release history
 ├── haven-relay/
-│   └── Dockerfile              # Builds Haven from source
+│   ├── Dockerfile              # Builds Haven from source (pinned version)
+│   └── entrypoint.sh           # Syncs config, normalizes RELAY_URL, config gate
+├── haven-tor/
+│   ├── Dockerfile              # Tor sidecar for the optional overlay
+│   ├── torrc                   # Hidden service configuration
+│   └── entrypoint.sh           # Fixes volume permissions, copies hostname
 ├── config-ui/
 │   ├── Dockerfile              # Flask web UI container
 │   ├── app.py                  # Configuration backend
@@ -174,11 +185,12 @@ haven-kit/
 │   └── static/
 │       ├── style.css           # Styling
 │       └── script.js           # Client-side logic
-└── data/                       # Persistent data (created at runtime)
+└── data/                       # Persistent data (created at runtime, gitignored)
     ├── config/                 # Configuration files
     ├── blossom/                # Media storage
     ├── db/                     # Database files
-    └── templates/              # Custom templates
+    ├── templates/              # Custom templates
+    └── tor/                    # Onion service keys (optional Tor overlay)
 ```
 
 ## Data Persistence
@@ -262,11 +274,42 @@ podman-compose down
 
 ### Updating Haven Version
 
-To use a specific version of Haven, edit `haven-relay/Dockerfile` and change the `HAVEN_VERSION` argument:
+The Haven version is pinned by the `HAVEN_VERSION` argument in `haven-relay/Dockerfile` (currently a commit just after `v1.2.2` that includes the `.onion` relay URL fix). To build a different upstream version/tag, either set the variable when building:
+
+```bash
+HAVEN_VERSION=v1.2.1 docker-compose build haven_relay
+```
+
+(or add `HAVEN_VERSION=v1.2.1` to the root `.env` file), or change the pinned default in `haven-relay/Dockerfile`:
 
 ```dockerfile
-ARG HAVEN_VERSION=v1.2.3  # Change to desired version/tag
+ARG HAVEN_VERSION=v1.2.2  # Change to desired version/tag from https://github.com/barrydeen/haven/tags
 ```
+
+### Tor Hidden Service (Optional)
+
+> On Umbrel, Tor is automatic — the relay's .onion address simply appears in the configuration UI. This section is for **local/VPS installs**.
+
+To publish your relay (and Blossom media server) as a Tor hidden service, stack the Tor overlay on top of the base compose file:
+
+```bash
+mkdir -p data/tor   # Podman does not auto-create bind-mount sources
+docker compose -f docker-compose.yml -f docker-compose.tor.yml up -d
+# OR, with Podman:
+podman-compose -f docker-compose.yml -f docker-compose.tor.yml up -d
+```
+
+> **Troubleshooting**: if the tor network fails to create with `subnet 172.31.78.0/29 is already used on the host`, a leftover network from a previous attempt (possibly with the *other* container engine) is holding the subnet — remove it with `docker network rm haven-kit_tor_net` or `podman network rm haven-kit_tor_net`.
+
+> **Use the same container engine your `.env` was set up for.** `setup-env.sh` writes `DOCKER_SOCK` and `CONTAINER_RUNTIME` into `.env`; if you bring the stack up with the *other* engine, the configuration UI ends up controlling the wrong daemon — status shows "Unknown" and restart fails with "no container ... found". If you have both engines installed, `CONTAINER_RUNTIME=docker ./setup-env.sh` forces the choice.
+
+Once Tor starts, the relay's `.onion` address appears in the configuration UI's Tor section (and in `data/tor/hostname`). Nostr clients can then reach your relay at `ws://<address>.onion`.
+
+- **The onion address is an identity**: its keys live in `data/tor/`. Back that directory up to keep the address; delete it to rotate to a new one.
+- **Tor-primary relays**: to make Tor your relay's main address (advertised in relay metadata and Blossom media URLs), set the Relay URL in the configuration UI to the `.onion` hostname.
+- **Use both files for every command** (`down`, `logs`, `restart`, ...), otherwise the tor container is left out — e.g. a `down` with only the base file leaves tor running. To make the overlay the default, add `COMPOSE_FILE=docker-compose.yml:docker-compose.tor.yml` to your `.env`, after which plain `docker compose up -d` includes Tor.
+- Blastr and import traffic still uses the clearnet; outbound Tor requires proxy support in upstream Haven.
+- If the `172.31.78.0/29` subnet collides with an existing network on your host, change it in `docker-compose.tor.yml` and `haven-tor/torrc` (both files, same IP).
 
 ## Proxy Configuration
 
@@ -355,15 +398,16 @@ This project uses GitHub Actions to automatically build and push Docker images w
 
 **To create a release:**
 
-1. Update version numbers if needed (in `umbrel-app.yml`, etc.)
-2. Commit your changes
-3. Create a new tag:
+1. Check [upstream Haven releases](https://github.com/barrydeen/haven/tags) and bump the pinned `HAVEN_VERSION` default in `haven-relay/Dockerfile` if a new version is available — the release workflow builds with this default
+2. Update version numbers if needed (in `VERSION`, `umbrel-app.yml`, etc.)
+3. Commit your changes
+4. Create a new tag:
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
    ```
-4. Create a GitHub release from the tag
-5. GitHub Actions will automatically:
+5. Create a GitHub release from the tag
+6. GitHub Actions will automatically:
    - Build both `haven-relay` and `haven-config-ui` images
    - Push to Docker Hub with tags `latest` and `v1.0.0`
    - Build for multiple platforms (amd64, arm64)
@@ -379,7 +423,7 @@ Set up these GitHub repository secrets:
 ## Support
 
 - HAVEN Kit: https://github.com/Letdown2491/haven-kit
-- HAVEN Project: https://github.com/bitvora/haven
+- HAVEN Project: https://github.com/barrydeen/haven
 - Umbrel Community: https://community.umbrel.com
 - Issues: https://github.com/Letdown2491/haven-kit/issues
 
@@ -390,5 +434,5 @@ Set up these GitHub repository secrets:
 
 ## Credits
 
-- **Haven Project**: Created by [Bitvora](https://github.com/bitvora)
+- **Haven Project**: Created by [Bitvora](https://github.com/bitvora), now maintained at [barrydeen/haven](https://github.com/barrydeen/haven)
 - **HAVEN Kit Configuration Tool**: Created by the HAVEN Kit contributors

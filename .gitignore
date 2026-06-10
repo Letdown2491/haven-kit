@@ -1,4 +1,6 @@
-# Data directories
+# Data directories (runtime/local config - contains the owner's npub and
+# relay settings; must never be committed, see issue #6)
+data/
 *.db
 *.log
 

@@ -6,6 +6,10 @@ services:
     build:
       context: ./haven-relay
       dockerfile: Dockerfile
+      args:
+        # Taken from the environment / root .env when set; otherwise the
+        # Dockerfile's pinned default applies.
+        - HAVEN_VERSION
     container_name: haven_relay_1
     restart: unless-stopped
     ports:
@@ -16,8 +20,10 @@ services:
       - ${APP_DATA_DIR}/db:/haven/db:z
     environment:
       - TZ=UTC
+    # Map syntax (not a list) so overlays like docker-compose.tor.yml can
+    # merge additional networks under podman-compose
     networks:
-      - haven_network
+      haven_network: {}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3355"]
       interval: 30s
@@ -51,7 +57,7 @@ services:
     depends_on:
       - haven_relay
     networks:
-      - haven_network
+      haven_network: {}
 
 networks:
   haven_network:
