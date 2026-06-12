@@ -1,13 +1,14 @@
 # HAVEN Kit
 
 [![Community Store](https://img.shields.io/badge/Umbrel-Community%20Store-purple?logo=umbrella)](https://github.com/Letdown2491/haven-kit-umbrel)
+[![StartOS Package](https://img.shields.io/badge/StartOS-Package-59B8AE)](https://github.com/Letdown2491/haven-kit-startos)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docker Relay](https://img.shields.io/badge/Docker-haven--relay-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/letdown2491/haven-relay)
 [![Docker Config UI](https://img.shields.io/badge/Docker-haven--config--ui-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/letdown2491/haven-config-ui)
 
 Simple configuration tool to set up a HAVEN Nostr relay with Docker or Podman with just a few clicks.
 
-**Quick Start:** [Install on Umbrel](#installation-on-umbrel) | [Using Docker](#using-docker) | [Using Podman](#using-podman)
+**Quick Start:** [Install on Umbrel](#installation-on-umbrel) | [Install on StartOS](#installation-on-startos) | [Using Docker](#using-docker) | [Using Podman](#using-podman)
 
 ## What is Haven?
 
@@ -87,6 +88,19 @@ Haven operates as four specialized relays in one application:
 4. Wait for the installation to complete
 
 **Note**: Community app stores are not verified by Umbrel. This store is maintained by the Haven Kit community.
+
+## Installation on StartOS
+
+HAVEN is also available as a native [StartOS](https://start9.com) package, maintained in the sibling repository [haven-kit-startos](https://github.com/Letdown2491/haven-kit-startos). Unlike the Docker/Podman and Umbrel versions, it does not use the web configuration UI — the relay is configured entirely through native StartOS actions.
+
+**Prerequisites**: StartOS 0.4.x
+
+1. Download the `.s9pk` for your server's architecture (`haven_x86_64.s9pk` or `haven_aarch64.s9pk`) from the [latest release](https://github.com/Letdown2491/haven-kit-startos/releases/latest)
+2. In your StartOS dashboard, open **System → Sideload a Service**
+3. Upload the `.s9pk` and install
+4. Run the **Setup** action to set your owner npub and relay URL
+
+See the [haven-kit-startos README](https://github.com/Letdown2491/haven-kit-startos#readme) for build-from-source instructions and details on how the package works.
 
 ## Configuration
 
