@@ -12,6 +12,7 @@ let configMode = null; // 'simple' or 'full'
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
+    populateTimezones(); // Fill the TZ dropdown before loadConfigIntoForm applies the saved value
     loadEnvConfig();
     loadConfigIntoForm();
     loadRelayConfig('blastr');
@@ -379,9 +380,11 @@ async function generateEnvFromForm() {
         throw new Error('OWNER_NPUB is required. Please enter a valid npub.');
     }
 
-    // Additional validation: check npub format
-    if (!ownerNpub.startsWith('npub1')) {
-        throw new Error('Invalid npub format. Must start with "npub1".');
+    // Validate the npub's bech32 checksum, not just its prefix: a mistyped npub
+    // looks well-formed but fails the checksum and makes Haven panic on startup
+    // (the relay would crash-loop). Reject it here for an immediate, clear error.
+    if (!isValidNpub(ownerNpub)) {
+        throw new Error('Invalid npub: it failed the bech32 checksum. Double-check it for typos — a valid npub starts with "npub1" and is 63 characters long.');
     }
 
     // Load existing .env file to preserve values not in the form
@@ -689,7 +692,7 @@ WOT_FETCH_TIMEOUT_SECONDS=${numVal('WOT_FETCH_TIMEOUT_SECONDS', 60)}
 
 ## Logging
 HAVEN_LOG_LEVEL="${getExistingVal('HAVEN_LOG_LEVEL') || 'INFO'}"
-TZ="${getExistingVal('TZ') || 'UTC'}"
+TZ="${formData.get('TZ') || getExistingVal('TZ') || 'UTC'}"
 `;
 
     return envContent;
@@ -1250,6 +1253,68 @@ function validateRelayHost(host) {
         throw new Error('Relay URL should not mix localhost with other hosts');
     }
     return normalized;
+}
+
+// Verify an npub's bech32 checksum (BIP-173), not just its shape. A mistyped
+// npub can still match /^npub1[charset]{58}$/ but fail the checksum, and Haven
+// panics on such an npub at startup. Keep in sync with is_valid_npub() in
+// app.py and is_valid_npub() in haven-relay/entrypoint.sh.
+const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+
+function bech32Polymod(values) {
+    const generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+    let chk = 1;
+    for (const value of values) {
+        const top = chk >>> 25;
+        chk = (((chk & 0x1ffffff) << 5) ^ value) >>> 0;
+        for (let i = 0; i < 5; i++) {
+            if ((top >>> i) & 1) chk = (chk ^ generator[i]) >>> 0;
+        }
+    }
+    return chk;
+}
+
+function bech32HrpExpand(hrp) {
+    const out = [];
+    for (const c of hrp) out.push(c.charCodeAt(0) >>> 5);
+    out.push(0);
+    for (const c of hrp) out.push(c.charCodeAt(0) & 31);
+    return out;
+}
+
+function isValidNpub(value) {
+    if (typeof value !== 'string') return false;
+    const s = value.trim().replace(/^"(.*)"$/, '$1');
+    // npub = "npub1" + 52 data chars + 6 checksum chars = 63 chars, all lowercase.
+    if (s.length !== 63 || !s.startsWith('npub1') || s !== s.toLowerCase()) return false;
+    const data = [];
+    for (const c of s.slice(5)) {
+        const idx = BECH32_CHARSET.indexOf(c);
+        if (idx === -1) return false;
+        data.push(idx);
+    }
+    return bech32Polymod(bech32HrpExpand('npub').concat(data)) === 1;
+}
+
+// Populate the timezone dropdown from the browser's canonical IANA list so users
+// can only pick a real zone — an unrecognized TZ silently falls back to UTC in
+// the relay (the bug we want to avoid). Falls back to a small static list on
+// browsers without Intl.supportedValuesOf.
+function populateTimezones() {
+    const select = document.getElementById('TZ');
+    if (!select) return;
+    let zones;
+    try {
+        zones = Intl.supportedValuesOf('timeZone');
+    } catch (e) {
+        zones = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
+                 'America/Los_Angeles', 'Europe/London', 'Europe/Paris',
+                 'Europe/Berlin', 'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata',
+                 'Australia/Sydney'];
+    }
+    if (!zones.includes('UTC')) zones = ['UTC', ...zones];
+    select.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
+    select.value = 'UTC';
 }
 
 function normalizeEnvBoolean(value, defaultValue) {

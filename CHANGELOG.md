@@ -2,7 +2,15 @@
 
 All notable changes to HAVEN Kit are documented here.
 
-## [1.4.0] - Unreleased
+## [1.5.0] - 2026-06-14
+
+### Added
+- Timezone selector (IANA zones) in Relay Configuration, used for relay log timestamps. Previously the timezone could only be set by hand-editing `.env`, which silently fell back to UTC on an unrecognized value.
+
+### Fixed
+- A mistyped owner npub is now rejected at entry instead of being saved and crash-looping the relay. Haven panics on an npub with a bad bech32 checksum, and the previous checks only validated the npub's shape (length + character set), so a single wrong character would pass through and take the relay down with no clear error. The setup wizard, the config save endpoint, and the relay startup gate now all verify the bech32 checksum.
+
+## [1.4.0] - 2026-06-10
 
 ### Added
 - Dedicated Tor hidden service for the relay and Blossom media server on Umbrel ([#5](https://github.com/Letdown2491/haven-kit/issues/5)). The `.onion` address is shown in the configuration UI; the UI itself stays behind Umbrel's login. Replaces the previous nginx host-split proxy.

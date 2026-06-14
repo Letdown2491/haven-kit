@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import json
-import re
 import subprocess
 import threading
 import time
@@ -21,23 +20,70 @@ RELAYS_IMPORT_FILE = CONFIG_DIR / "relays_import.json"
 # The relay entrypoint refuses to start Haven until every required npub is a
 # real key (see haven-relay/entrypoint.sh); mirror that check so the UI can
 # report "awaiting configuration" instead of "stopped" on fresh installs.
-NPUB_PATTERN = re.compile(r'^npub1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}$')
 REQUIRED_NPUB_KEYS = (
     'OWNER_NPUB', 'PRIVATE_RELAY_NPUB', 'CHAT_RELAY_NPUB',
     'OUTBOX_RELAY_NPUB', 'INBOX_RELAY_NPUB',
 )
 
+# A shape-only regex (right length + bech32 charset) is not enough: a mistyped
+# npub can match it yet carry a bad bech32 checksum, and Haven's loadConfig
+# panics on such an npub at startup -> the relay crash-loops with no clear
+# error. So validate the actual BIP-173 checksum here, at the input boundary.
+# Keep this in sync with isValidNpub() in static/script.js and is_valid_npub()
+# in haven-relay/entrypoint.sh.
+BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+
+def _bech32_polymod(values):
+    generator = (0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3)
+    chk = 1
+    for value in values:
+        top = chk >> 25
+        chk = (chk & 0x1ffffff) << 5 ^ value
+        for i in range(5):
+            chk ^= generator[i] if ((top >> i) & 1) else 0
+    return chk
+
+
+def _bech32_hrp_expand(hrp):
+    return [ord(c) >> 5 for c in hrp] + [0] + [ord(c) & 31 for c in hrp]
+
+
+def is_valid_npub(value):
+    """True only for a bech32 'npub' whose checksum verifies (not just its shape).
+
+    An npub is "npub1" + 58 chars (52 data + 6 checksum), all lowercase.
+    """
+    if not isinstance(value, str):
+        return False
+    s = value.strip().strip('"').strip("'")
+    if len(s) != 63 or not s.startswith('npub1') or s != s.lower():
+        return False
+    data = []
+    for c in s[5:]:
+        idx = BECH32_CHARSET.find(c)
+        if idx == -1:
+            return False
+        data.append(idx)
+    return _bech32_polymod(_bech32_hrp_expand('npub') + data) == 1
+
+
+def parse_env_text(text):
+    """Parse .env-style text into a {KEY: unquoted-value} dict."""
+    env = {}
+    for line in text.split('\n'):
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            key, value = line.split('=', 1)
+            env[key.strip()] = value.strip().strip('"').strip("'")
+    return env
+
 
 def is_relay_configured():
-    """True when the .env contains a valid npub for every required key."""
+    """True when the .env contains a checksum-valid npub for every required key."""
     try:
-        env = {}
-        for line in ENV_FILE.read_text().split('\n'):
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
-                env[key.strip()] = value.strip().strip('"').strip("'")
-        return all(NPUB_PATTERN.match(env.get(key, '')) for key in REQUIRED_NPUB_KEYS)
+        env = parse_env_text(ENV_FILE.read_text())
+        return all(is_valid_npub(env.get(key, '')) for key in REQUIRED_NPUB_KEYS)
     except Exception:
         return False
 
@@ -151,6 +197,19 @@ def save_env_config():
     try:
         data = request.get_json()
         content = data.get('content', '')
+        # Validate every npub's bech32 checksum before persisting. The UI POSTs
+        # raw .env text, so this is the authoritative gate: a well-formed but
+        # mistyped npub passes a shape check yet makes Haven panic on startup
+        # (crash-loop), so refuse to write it rather than break the relay.
+        env = parse_env_text(content)
+        for key in REQUIRED_NPUB_KEYS:
+            if not is_valid_npub(env.get(key, '')):
+                label = key.replace('_', ' ').title()
+                return jsonify({
+                    'success': False,
+                    'error': f'{label} is not a valid npub. Check it for typos — '
+                             'a single wrong character fails the npub checksum.'
+                }), 400
         ENV_FILE.write_text(content)
         return jsonify({'success': True, 'message': 'Environment configuration saved successfully'})
     except Exception as e:

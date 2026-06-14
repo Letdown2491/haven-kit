@@ -2,7 +2,7 @@ manifestVersion: 1
 id: haven
 category: social
 name: Haven
-version: "1.4.0"
+version: "1.5.0"
 tagline: High Availability Vault for Events on Nostr
 description: >-
   Haven is a sovereign personal relay for the Nostr protocol, designed for storing
@@ -26,26 +26,16 @@ description: >-
   note aggregation from other relays, cloud backup capabilities, and broadcast
   distribution to multiple relays simultaneously.
 releaseNotes: >-
-  Fresh installs now start unconfigured: the relay waits for you to complete
-  the setup wizard instead of shipping with preconfigured ownership, and
-  starts automatically once configured.
+  This release hardens setup against mistyped keys and adds a timezone picker.
 
 
-  Fixes and improvements:
+  - A mistyped npub is now caught the moment you enter it, with a clear error,
+    instead of being saved and silently crash-looping the relay. The setup
+    wizard, the save endpoint, and the relay startup check all verify the npub's
+    bech32 checksum, not just its shape.
 
-  - The relay and Blossom media server get a dedicated Tor hidden service;
-    the .onion address is shown in the configuration UI
-
-  - Fixed Blossom media downloads failing when RELAY_URL included a ws:// or
-    wss:// scheme; schemes are now stripped automatically on startup
-
-  - The dashboard shows "Awaiting configuration" on fresh installs, and Full
-    Configuration mode now includes an owner name field
-
-  - Haven is now built from a pinned upstream commit (v1.2.2 plus the .onion
-    relay URL fix) for reproducible builds, overridable via HAVEN_VERSION
-
-  - Updated upstream project links to the new repository location
+  - Added a timezone selector (IANA zones) in Relay Configuration for relay log
+    timestamps; previously the timezone could only be set by hand-editing .env.
 developer: Bitvora
 website: https://github.com/barrydeen/haven
 dependencies: []

@@ -37,12 +37,60 @@ sync_config() {
 
 # Haven panics on a missing or invalid npub (owner and all four per-relay
 # npubs are required), so a fresh, unconfigured install would crash-loop. A
-# real npub is "npub1" plus 58 bech32 characters; anything else (empty, the
-# template placeholder, ...) means "not set up yet".
+# shape check ("npub1" + 58 bech32 chars) is not enough on its own: a
+# mistyped-but-well-formed npub passes it yet has a bad bech32 checksum, which
+# still makes Haven panic. So verify the actual BIP-173 checksum here as a
+# backstop for hand-edited config. Keep in sync with is_valid_npub() in
+# config-ui/app.py and isValidNpub() in config-ui/static/script.js.
+#
+# BECH32_CHARSET maps each data char to its 5-bit value; the polymod is run
+# over hrp_expand("npub") + data and must equal 1 for a valid checksum.
+# hrp_expand("npub") is constant, precomputed here: high bits (n,p,u,b >> 5),
+# separator 0, then low bits (n,p,u,b & 31).
+BECH32_CHARSET="qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+NPUB_HRP_EXPAND="3 3 3 3 0 14 16 21 2"
+
+# One bech32 polymod round for value $1; updates the running checksum _chk.
+# Uses POSIX shell arithmetic (busybox ash supports ^, &, |, <<, >>).
+_polymod_step() {
+    _top=$(( _chk >> 25 ))
+    _chk=$(( ((_chk & 0x1ffffff) << 5) ^ $1 ))
+    [ $(( (_top >> 0) & 1 )) -eq 1 ] && _chk=$(( _chk ^ 0x3b6a57b2 ))
+    [ $(( (_top >> 1) & 1 )) -eq 1 ] && _chk=$(( _chk ^ 0x26508e6d ))
+    [ $(( (_top >> 2) & 1 )) -eq 1 ] && _chk=$(( _chk ^ 0x1ea119fa ))
+    [ $(( (_top >> 3) & 1 )) -eq 1 ] && _chk=$(( _chk ^ 0x3d4233dd ))
+    [ $(( (_top >> 4) & 1 )) -eq 1 ] && _chk=$(( _chk ^ 0x2a1462b3 ))
+    return 0
+}
+
+# Return 0 only if $1 is a lowercase npub with a verifying bech32 checksum.
+is_valid_npub() {
+    _np=$1
+    case $_np in npub1*) ;; *) return 1 ;; esac
+    [ "${#_np}" -eq 63 ] || return 1
+    [ "$_np" = "$(printf '%s' "$_np" | tr 'A-Z' 'a-z')" ] || return 1  # reject any uppercase
+
+    _chk=1
+    for _v in $NPUB_HRP_EXPAND; do
+        _polymod_step "$_v"
+    done
+
+    _rest=${_np#npub1}   # the 58 data characters (52 payload + 6 checksum)
+    while [ -n "$_rest" ]; do
+        _ch=${_rest%"${_rest#?}"}   # first character
+        _rest=${_rest#?}            # drop it
+        _pre=${BECH32_CHARSET%%"$_ch"*}
+        [ "$_pre" = "$BECH32_CHARSET" ] && return 1   # char not in bech32 charset
+        _polymod_step "${#_pre}"
+    done
+
+    [ "$_chk" -eq 1 ]
+}
+
 is_configured() {
     for npub in "${OWNER_NPUB:-}" "${PRIVATE_RELAY_NPUB:-}" "${CHAT_RELAY_NPUB:-}" \
                 "${OUTBOX_RELAY_NPUB:-}" "${INBOX_RELAY_NPUB:-}"; do
-        printf '%s' "$npub" | grep -Eq '^npub1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}$' || return 1
+        is_valid_npub "$npub" || return 1
     done
 }
 
