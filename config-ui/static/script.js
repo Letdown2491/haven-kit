@@ -461,7 +461,7 @@ DB_ENGINE="badger"
 LMDB_MAPSIZE=0
 
 # Media Storage Path
-BLOSSOM_PATH="/haven/blossom"
+BLOSSOM_PATH="/haven/blossom/"
 
 ## Private Relay Settings
 PRIVATE_RELAY_NAME="${username}'s Private Relay"
@@ -570,6 +570,12 @@ TZ="${getExistingVal('TZ') || 'UTC'}"
         '';
     const relayHost = validateRelayHost(relayUrlRaw);
     formData.set('RELAY_URL', relayHost);
+
+    // Haven builds each blob path as BLOSSOM_PATH + <sha256> with no separator, so
+    // the value must end in a slash or uploads land outside the mounted volume and
+    // vanish on restart. Normalize whatever the user typed to a single trailing slash.
+    const blossomPath = (formData.get('BLOSSOM_PATH') || '/haven/blossom').replace(/\/*$/, '') + '/';
+    formData.set('BLOSSOM_PATH', blossomPath);
 
     let envContent = `# Owner Configuration (REQUIRED)
 # Your Nostr public key (npub format)

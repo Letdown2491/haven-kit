@@ -23,6 +23,16 @@ sync_config() {
             -e 's|^(RELAY_URL="?[^"/ ]+)/[^"]*|\1|' \
             "$TARGET_ENV"
 
+        # Haven builds each Blossom blob path as BLOSSOM_PATH + <sha256> with no
+        # separator, so BLOSSOM_PATH must end in a slash or uploads are written
+        # outside the mounted /haven/blossom/ volume and disappear on restart.
+        # Append a trailing slash to any stale or hand-edited value that lacks one.
+        # Idempotent: a value already ending in "/" (or an empty value) is left
+        # untouched, so re-running never doubles the slash.
+        sed -E -i \
+            -e 's|^(BLOSSOM_PATH=)"?([^"]*[^"/])"?$|\1"\2/"|' \
+            "$TARGET_ENV"
+
         # Export all variables from the configuration so they override any stale
         # environment values that may have been baked into the container.
         set -a

@@ -130,7 +130,7 @@ Configure the following settings through the web interface:
 - `S3_BUCKET_NAME` - Name of your storage bucket
 
 #### Media Storage
-- `BLOSSOM_PATH` - Directory for media files (default: /haven/blossom)
+- `BLOSSOM_PATH` - Directory for media files (default: `/haven/blossom/`). Must end with a trailing slash — Haven appends the file hash directly to this value, so a slash-less path writes uploads outside the mounted volume and they are lost on restart. The relay corrects a missing slash automatically on startup.
 
 ### Relay Configuration
 

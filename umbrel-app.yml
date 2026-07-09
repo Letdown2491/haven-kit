@@ -2,7 +2,7 @@ manifestVersion: 1
 id: haven
 category: social
 name: Haven
-version: "1.5.0"
+version: "1.5.1"
 tagline: High Availability Vault for Events on Nostr
 description: >-
   Haven is a sovereign personal relay for the Nostr protocol, designed for storing
@@ -26,16 +26,17 @@ description: >-
   note aggregation from other relays, cloud backup capabilities, and broadcast
   distribution to multiple relays simultaneously.
 releaseNotes: >-
-  This release hardens setup against mistyped keys and adds a timezone picker.
+  This release fixes Blossom media being lost on every relay restart.
 
 
-  - A mistyped npub is now caught the moment you enter it, with a clear error,
-    instead of being saved and silently crash-looping the relay. The setup
-    wizard, the save endpoint, and the relay startup check all verify the npub's
-    bech32 checksum, not just its shape.
+  - Uploaded images and videos now persist across restarts. The media storage
+    path was missing a trailing slash, so uploads were written outside the
+    mounted volume and disappeared when the relay restarted (clients saw them
+    until then, then got 404s). Defaults are corrected, the config UI normalizes
+    the path you enter, and the relay repairs a bad value on startup.
 
-  - Added a timezone selector (IANA zones) in Relay Configuration for relay log
-    timestamps; previously the timezone could only be set by hand-editing .env.
+  - Note: media uploaded before this update was never saved to disk and cannot
+    be recovered; the fix only makes future uploads persist.
 developer: Bitvora
 website: https://github.com/barrydeen/haven
 dependencies: []

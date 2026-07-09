@@ -153,7 +153,9 @@ BACKUP_PROVIDER=none
 # S3_BUCKET_NAME=
 
 # Media Storage Path
-BLOSSOM_PATH=/haven/blossom
+# Trailing slash is required: Haven builds each blob path as BLOSSOM_PATH + <sha256>
+# with no separator, so a slash-less value writes uploads outside the mounted volume.
+BLOSSOM_PATH=/haven/blossom/
 """
 
 DEFAULT_RELAYS = []

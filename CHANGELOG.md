@@ -2,6 +2,11 @@
 
 All notable changes to HAVEN Kit are documented here.
 
+## [1.5.1] - 2026-07-09
+
+### Fixed
+- Blossom media (uploaded images and videos) is no longer lost on every relay restart. `BLOSSOM_PATH` was seeded and defaulted without a trailing slash, and Haven builds each blob's path as `BLOSSOM_PATH` + `<sha256>` with no separator — so a slash-less value wrote uploads to `/haven/blossom<hash>` in the container's ephemeral root instead of the mounted `/haven/blossom/` volume. Clients still saw the images (the metadata DB persisted) until a restart, then got 404s. The defaults now include the trailing slash, the config UI normalizes whatever path you enter, and the relay entrypoint appends a slash to any stale or hand-edited value on startup (fixing existing installs on next restart). **Note:** media uploaded before this fix was never written to the volume and cannot be recovered; the fix only makes future uploads persist.
+
 ## [1.5.0] - 2026-06-14
 
 ### Added
